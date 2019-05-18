@@ -1,5 +1,5 @@
 import math
-from .vectors import Vector3
+from .vectors import Vector3, Triangle
 
 
 def collides(face_v1, face_v2, face_v3, box_mid_x, box_mid_z, box_size_x, box_size_z):
@@ -149,6 +149,8 @@ class Collision(object):
         print("finished generating triangles")
         print(grid_size_x, grid_size_z)
 
+
+
     def collide_ray_downwards(self, x, z, y=99999):
         grid_x = int((x+6000) // 100)
         grid_z = int((z+6000) // 100)
@@ -209,3 +211,19 @@ class Collision(object):
                     hit = height
 
         return hit
+
+    def collide_ray(self, ray):
+        best_distance = None
+        place_at = None
+
+        for tri in self.triangles:
+            collision = ray.collide(tri)
+
+            if collision is not False:
+                point, distance = collision
+
+                if best_distance is None or distance < best_distance:
+                    place_at = point
+                    best_distance = distance
+
+        return place_at

@@ -13,7 +13,7 @@ class ObjectModels(object):
 
         glTranslatef(pikminobject.position.x, -pikminobject.position.z, pikminobject.position.y)
         glRotate(pikminobject.rotation.x, 1, 0, 0)
-        glRotate(pikminobject.rotation.y, 0, 0, -1)
+        glRotate(pikminobject.rotation.y, 0, 0, 1)
         glRotate(pikminobject.rotation.z, 0, 1, 0)
 
         if pikminobject.name in self.models:
@@ -28,7 +28,7 @@ class ObjectModels(object):
 
         glTranslatef(pikminobject.position.x, -pikminobject.position.z, pikminobject.position.y)
         glRotate(pikminobject.rotation.x, 1, 0, 0)
-        glRotate(pikminobject.rotation.y, 0, 0, -1)
+        glRotate(pikminobject.rotation.y, 0, 0, 1)
         glRotate(pikminobject.rotation.z, 0, 1, 0)
 
         if pikminobject.name in self.models:

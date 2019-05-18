@@ -100,6 +100,25 @@ class Vector4(Vector3):
         self.w /= norm
 
 
+class Vector2(Vector3):
+    def __init__(self, x, y):
+        super().__init__(x, y, 0)
+
+    def copy(self):
+        return Vector2(self.x, self.y)
+
+    def __truediv__(self, other):
+        return Vector2(self.x/other, self.y/other)
+
+    def __add__(self, other_vec):
+        return Vector2(self.x+other_vec.x, self.y+other_vec.y)
+
+    def __mul__(self, other):
+        return Vector2(self.x*other, self.y*other)
+
+    def __sub__(self, other_vec):
+        return Vector2(self.x-other_vec.x, self.y-other_vec.y)
+
 
 class Plane(object):
     def __init__(self, origin, vec1, vec2): # a point and two vectors defining the plane
@@ -120,6 +139,18 @@ class Plane(object):
 
     def is_parallel(self, vec):
         return self.normal.dot(vec) == 0
+
+    @classmethod
+    def xy_aligned(cls, origin):
+        return cls(origin, Vector3(1, 0, 0), Vector3(0, 1, 0))
+
+    @classmethod
+    def xz_aligned(cls, origin):
+        return cls(origin, Vector3(1, 0, 0), Vector3(0, 0, 1))
+
+    @classmethod
+    def yz_aligned(cls, origin):
+        return cls(origin, Vector3(0, 1, 0), Vector3(0, 1, 0))
 
 
 class Triangle(object):

@@ -1,6 +1,66 @@
 from collections import OrderedDict
-
+from copy import deepcopy
 from .vectors import Vector3
+
+
+class GeneratorWriter(object):
+    def __init__(self, file):
+        self.f = file
+        self.current_line = 1
+
+        self.indent = 0
+
+    def write_token(self, token, comment = None):
+        self.f.write(self.indent*"\t")
+        self.f.write(token)
+
+        if comment is not None:
+            if not comment.startswith("//") and not comment.startswith("#"):
+                raise RuntimeError("Comment started with invalid character: {0}".format(comment))
+            self.f.write(" ")
+            self.f.write(comment)
+
+        self.f.write("\n")
+
+    def write_comment(self, comment):
+        if not comment.startswith("//") and not comment.startswith("#"):
+            raise RuntimeError("Comment started with invalid character: {0}".format(comment))
+        self.f.write(self.indent*"\t")
+        self.f.write(" ")
+        self.f.write(comment)
+
+        self.f.write("\n")
+
+    def open_bracket(self):
+        self.write_token("{")
+        self.indent += 1
+
+    def close_bracket(self):
+        self.indent -= 1
+        self.write_token("}")
+
+    def write_vector3f(self, x, y, z):
+        res = "{0:.8f} {1:.8f} {2:.8f}".format(x, y, z)
+        if "e" in res or "inf" in res:
+            raise RuntimeError("invalid float: {0}".format(res))
+        self.write_token(res)
+
+    def write_string(self, string):
+        self.write_token("\""+string+"\"")
+
+    def write_float(self, val):
+        res = "{0:.8f}".format(val)
+        if "e" in res or "inf" in res:
+            raise RuntimeError("invalid float: {0}".format(res))
+        self.write_token(res)
+
+    def write_integer(self, val):
+        assert isinstance(val, int)
+        self.write_token(str(val))
+
+    def write_string_tripple(self, string1, string2, string3):
+        res = "{0} {1} {2}".format(string1, string2, string3)
+        self.write_token(res)
 
 
 class GeneratorReader(object):
@@ -138,6 +198,23 @@ class GeneratorObject(object):
 
         self.unknown_params = OrderedDict()
 
+    def from_other(self, obj):
+        self.name = obj.name
+        self.version = obj.version
+        self.generatorid = obj.generatorid
+
+        self.spline = obj.spline
+        self.spline_params = obj.spline_params
+
+        self.position = obj.position
+        self.rotation = obj.rotation
+        self.scale = obj.scale
+
+        self.unknown_params = obj.unknown_params
+
+    def copy(self):
+        return deepcopy(self)
+
     @classmethod
     def from_generator_file(cls, reader: GeneratorReader):
         name = reader.read_string()
@@ -148,6 +225,49 @@ class GeneratorObject(object):
         gen._read_spline(reader)
 
         return gen
+
+    def write(self, writer: GeneratorWriter):
+        writer.write_string(self.name)
+        writer.write_string(self.version)
+        writer.write_string_tripple(*self.generatorid)
+        self.write_parameters(writer)
+        if len(self.spline) == 0:
+            writer.write_string("no-spline")
+        else:
+            writer.write_string("spline")
+            writer.write_integer(len(self.spline))
+            for x, y, z in self.spline:
+                writer.write_vector3f(x, y, z)
+            writer.write_token(self.spline_params)
+
+    def write_parameters(self, writer:GeneratorWriter):
+        writer.open_bracket()
+
+        writer.open_bracket()
+        writer.write_string("mPos")
+        writer.write_vector3f(self.position.x, self.position.y, self.position.z)
+        writer.close_bracket()
+
+
+        writer.open_bracket()
+        writer.write_string("mBaseScale")
+        writer.write_float(self.scale)
+        writer.close_bracket()
+
+
+        writer.open_bracket()
+        writer.write_string("mPosture")
+        writer.write_vector3f(self.rotation.x, self.rotation.y, self.rotation.z)
+        writer.close_bracket()
+
+        for param, values in self.unknown_params.items():
+            writer.open_bracket()
+            writer.write_string(param)
+            for val in values:
+                writer.write_token(val)
+            writer.close_bracket()
+
+        writer.close_bracket()
 
     def read_parameters(self, reader: GeneratorReader):
         if reader.read_token() != "{":
@@ -233,6 +353,13 @@ class GeneratorFile(object):
                 raise RuntimeError("Malformed file, expected generator object or '}'")
 
         return genfile
+
+    def write(self, writer: GeneratorWriter):
+        writer.open_bracket()
+        for genobj in self.generators:
+            genobj.write(writer)
+        writer.close_bracket()
+
 
 if __name__ == "__main__":
     with open("p29.txt", "r", encoding="shift-jis", errors="replace") as f:

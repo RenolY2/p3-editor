@@ -1,4 +1,6 @@
 import traceback
+from io import StringIO
+import os
 
 from PyQt5.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QFont, QFontMetrics, QPolygon, QImage, QPixmap, QKeySequence
 from PyQt5.QtWidgets import (QWidget, QListWidget, QListWidgetItem, QDialog, QMenu, QLineEdit,
@@ -9,6 +11,7 @@ from PyQt5.QtCore import QSize, pyqtSignal, QPoint, QRect
 from PyQt5.QtCore import Qt
 import PyQt5.QtGui as QtGui
 
+from lib.libgen import GeneratorWriter, GeneratorObject, GeneratorReader
 
 def catch_exception(func):
     def handle(*args, **kwargs):
@@ -127,16 +130,20 @@ class PikObjectEditor(QMdiSubWindow):
     def set_content(self, pikminobject):
         try:
             text = StringIO()
-            for comment in pikminobject.preceeding_comment:
+            """for comment in pikminobject.preceeding_comment:
                 assert comment.startswith("#")
                 text.write(comment.strip())
                 text.write("\n")
             node = pikminobject.to_textnode()
             piktxt = PikminTxt()
-            piktxt.write(text, node=[node])
+            piktxt.write(text, node=[node])"""
+            genwriter = GeneratorWriter(text)
+            pikminobject.write(genwriter)
             self.textbox_xml.setText(text.getvalue())
             self.entity = pikminobject
-            self.set_title(pikminobject.get_useful_object_name())
+            self.set_title(pikminobject.name)
+            text.close()
+            del text
         except:
             traceback.print_exc()
 
@@ -149,10 +156,14 @@ class PikObjectEditor(QMdiSubWindow):
     def get_content(self):
         try:
             content = self.textbox_xml.toPlainText()
-            obj = PikminObject()
-            obj.from_text(content)
-            obj.get_rotation()
-            self.set_title(obj.get_useful_object_name())
+            file = StringIO()
+            file.write(content)
+            file.seek(0)
+            reader = GeneratorReader(file)
+            obj = GeneratorObject.from_generator_file(reader)
+            del reader
+            del file
+            self.set_title(obj.name)
             return obj
         except Exception as e:
             traceback.print_exc()
@@ -230,9 +241,13 @@ class AddPikObjectWindow(PikObjectEditor):
     def get_content(self):
         try:
             content = self.textbox_xml.toPlainText()
-            obj = PikminObject()
-            obj.from_text(content)
-            obj.get_rotation()
+            file = StringIO()
+            file.write(content)
+            file.seek(0)
+            reader = GeneratorReader(file)
+            obj = GeneratorObject.from_generator_file(reader)
+            del reader
+            del file
             return obj
         except Exception as e:
             traceback.print_exc()

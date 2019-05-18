@@ -14,13 +14,13 @@ import PyQt5.QtGui as QtGui
 import opengltext
 import py_obj
 from lib.model_rendering import Waterbox
-from lib.libgen import GeneratorFile
+from lib.libgen import GeneratorFile, GeneratorWriter
 
 
 #from libpiktxt import PikminGenFile, WaterboxTxt
 
 from widgets.editor_widgets import catch_exception
-#from pikmingen import PikminObject
+from widgets.editor_widgets import AddPikObjectWindow
 from configuration import read_config, make_default_config, save_cfg
 
 import pikmingen_widgets as pikwidgets
@@ -326,7 +326,8 @@ class GenEditor(QMainWindow):
             with open(self.current_gen_path, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
                 start = default_timer()
                 try:
-                    self.pikmin_gen_file.write(f)
+                    writer = GeneratorWriter(f)
+                    self.pikmin_gen_file.write(writer)
                     self.set_has_unsaved_changes(False)
                 except Exception as error:
                     print("Error appeared while saving:", error)
@@ -346,7 +347,8 @@ class GenEditor(QMainWindow):
         if filepath:
             with open(filepath, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
                 try:
-                    self.pikmin_gen_file.write(f)
+                    writer = GeneratorWriter(f)
+                    self.pikmin_gen_file.write(writer)
                     self.set_base_window_title(filepath)
                     self.pathsconfig["gen"] = filepath
                     save_cfg(self.configuration)
@@ -437,7 +439,7 @@ class GenEditor(QMainWindow):
 
     def button_open_add_item_window(self):
         if self.add_object_window is None:
-            self.add_object_window = pikwidgets.AddPikObjectWindow()
+            self.add_object_window = AddPikObjectWindow()
             self.add_object_window.button_savetext.pressed.connect(self.button_add_item_window_save)
             self.add_object_window.closing.connect(self.button_add_item_window_close)
             if self.addobjectwindow_last_selected is not None:
@@ -450,7 +452,7 @@ class GenEditor(QMainWindow):
 
     def shortcut_open_add_item_window(self):
         if self.add_object_window is None:
-            self.add_object_window = pikwidgets.AddPikObjectWindow()
+            self.add_object_window = AddPikObjectWindow()
             self.add_object_window.button_savetext.pressed.connect(self.button_add_item_window_save)
             self.add_object_window.closing.connect(self.button_add_item_window_close)
             if self.addobjectwindow_last_selected is not None:
@@ -483,19 +485,17 @@ class GenEditor(QMainWindow):
     @catch_exception
     def action_add_object(self, x, z):
         newobj = self.object_to_be_added.copy()
-
-        newobj.position_x = newobj.x = round(x, 6)
-        newobj.position_z = newobj.z = round(z, 6)
-        newobj.offset_x = newobj.offset_z = 0.0
+        print("WE DID SOMETHING")
+        newobj.position.x = x
+        newobj.position.z = z
 
         if self.editorconfig.getboolean("GroundObjectsWhenAdding") is True:
             if self.pikmin_gen_view.collision is not None:
-                y = self.pikmin_gen_view.collision.collide_ray_downwards(newobj.x, newobj.z)
+                y = self.pikmin_gen_view.collision.collide_ray_downwards(x, z)
                 if y is not None:
-                    newobj.y = newobj.position_y = round(y, 6)
-                    newobj.offset_y = 0
+                    newobj.position.y = y
 
-        self.pikmin_gen_file.objects.append(newobj)
+        self.pikmin_gen_file.generators.append(newobj)
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
 
@@ -542,7 +542,7 @@ class GenEditor(QMainWindow):
     @catch_exception
     def action_move_objects(self, deltax, deltaz):
         for obj in self.pikmin_gen_view.selected:
-            obj.x += deltax
+            """obj.x += deltax
             obj.z += deltaz
             obj.x = round(obj.x, 6)
             obj.z = round(obj.z, 6)
@@ -555,11 +555,13 @@ class GenEditor(QMainWindow):
                 if self.pikmin_gen_view.collision is not None:
                     y = self.pikmin_gen_view.collision.collide_ray_downwards(obj.x, obj.z)
                     obj.y = obj.position_y = round(y, 6)
-                    obj.offset_y = 0
+                    obj.offset_y = 0"""
+            obj.position.x += deltax
+            obj.position.z += deltaz
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, (obj.x, obj.y, obj.z), obj.get_rotation())
+            self.pik_control.set_info(obj, obj.position, obj.rotation)
 
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
@@ -637,9 +639,14 @@ class GenEditor(QMainWindow):
         elif event.key() == Qt.Key_E:
             self.pikmin_gen_view.MOVE_DOWN = 0
 
-    def action_rotate_object(self, obj, angle):
-        obj.set_rotation((None, round(angle, 6), None))
-        self.pik_control.set_info(obj, (obj.x, obj.y, obj.z), obj.get_rotation())
+    def action_rotate_object(self, deltarotation):
+        #obj.set_rotation((None, round(angle, 6), None))
+        for obj in self.pikmin_gen_view.selected:
+            obj.rotation += deltarotation
+
+        if len(self.pikmin_gen_view.selected) == 1:
+            obj = self.pikmin_gen_view.selected[0]
+            self.pik_control.set_info(obj, obj.position, obj.rotation)
 
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
@@ -664,7 +671,7 @@ class GenEditor(QMainWindow):
     def action_delete_objects(self):
         tobedeleted = []
         for obj in self.pikmin_gen_view.selected:
-            self.pikmin_gen_file.objects.remove(obj)
+            self.pikmin_gen_file.generators.remove(obj)
             if obj in self.editing_windows:
                 self.editing_windows[obj].destroy()
                 del self.editing_windows[obj]
@@ -802,10 +809,10 @@ class GenEditor(QMainWindow):
                     def action_editwindow_save_data():
                         newobj = self.editing_windows[currentobj].get_content()
                         if newobj is not None:
-                            currentobj.from_pikmin_object(newobj)
+                            currentobj.from_other(newobj)
                             self.pik_control.set_info(currentobj,
-                                                      (currentobj.x, currentobj.y, currentobj.z),
-                                                      currentobj.get_rotation())
+                                                      currentobj.position,
+                                                      currentobj.rotation)
                             #self.pikmin_gen_view.update()
                             self.pikmin_gen_view.do_redraw()
 
@@ -919,11 +926,18 @@ class EditorHistory(object):
         self.step += 1
         return item
 
+import sys
+def except_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
+
+
 
 if __name__ == "__main__":
-    import sys
+    #import sys
     import platform
     import argparse
+
+    sys.excepthook = except_hook
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--inputgen", default=None,

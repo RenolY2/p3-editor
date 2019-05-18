@@ -135,6 +135,7 @@ class Model(object):
 
 ALPHA = 0.8
 
+
 class Waterbox(Model):
     def __init__(self, corner_bottomleft, corner_topright):
         self.corner_bottomleft = corner_bottomleft
@@ -198,7 +199,12 @@ class GenericObject(Model):
             glColor4f(0.0, 0.0, 0.0, 1.0)
         glCullFace(GL_FRONT)
         glPushMatrix()
-        glScalef(1.2, 1.2, 1.2)
+
+        if selected:
+            glScalef(1.5, 1.5, 1.5)
+        else:
+            glScalef(1.2, 1.2, 1.2)
+
         self.mesh_list[1].render()
         glPopMatrix()
         glCullFace(GL_BACK)
