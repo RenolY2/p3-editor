@@ -21,6 +21,7 @@ class Mesh(object):
         self.vertices = []
         self.texcoords = []
         self.triangles = []
+        self.lines = []
 
         self._displist = None
 
@@ -40,6 +41,13 @@ class Mesh(object):
             glVertex3f(*self.vertices[v1i])
             glVertex3f(*self.vertices[v2i])
             glVertex3f(*self.vertices[v3i])
+        glEnd()
+        glBegin(GL_LINES)
+        for v1, v2 in self.lines:
+            v1i = v1
+            v2i = v2
+            glVertex3f(*self.vertices[v1i])
+            glVertex3f(*self.vertices[v2i])
         glEnd()
         glEndList()
         self._displist = displist
@@ -107,6 +115,8 @@ class Model(object):
                     vertices.append((x*scale, y*scale, z*scale))
                 else:
                     vertices.append((x * scale, z * scale, -y * scale, ))
+            elif cmd == "l":
+                curr_mesh.lines.append((int(args[1])-1, int(args[2])-1))
             elif cmd == "f":
                 if curr_mesh is None:
                     curr_mesh = Mesh("")

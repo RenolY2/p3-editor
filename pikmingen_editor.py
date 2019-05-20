@@ -28,6 +28,7 @@ from widgets.side_widget import PikminSideWidget
 from widgets.editor_widgets import PikObjectEditor, open_error_dialog, catch_exception_with_dialog
 from pikmingen_widgets import GenMapViewer
 from lib.sarc import SARCArchive
+from lib.libpath import Paths
 
 PIKMIN2GEN = "Generator files (defaultgen.txt;initgen.txt;plantsgen.txt;*.txt)"
 
@@ -177,6 +178,11 @@ class GenEditor(QMainWindow):
         self.file_menu.addAction(self.save_file_action)
         self.file_menu.addAction(self.save_file_as_action)
 
+        self.paths_menu = QMenu(self.menubar)
+        self.paths_menu.setTitle("Paths")
+        self.paths_load = QAction("Load Paths", self)
+        self.paths_load.triggered.connect(self.button_load_paths)
+        self.paths_menu.addAction(self.paths_load)
 
         # ------ Collision Menu
         self.collision_menu = QMenu(self.menubar)
@@ -210,6 +216,7 @@ class GenEditor(QMainWindow):
 
         self.menubar.addAction(self.file_menu.menuAction())
         self.menubar.addAction(self.collision_menu.menuAction())
+        self.menubar.addAction(self.paths_menu.menuAction())
         self.menubar.addAction(self.misc_menu.menuAction())
         self.setMenuBar(self.menubar)
 
@@ -301,6 +308,23 @@ class GenEditor(QMainWindow):
                 try:
                     pikmin_gen_file = GeneratorFile.from_file(f)
                     self.setup_gen_file(pikmin_gen_file, filepath)
+
+                except Exception as error:
+                    print("Error appeared while loading:", error)
+                    traceback.print_exc()
+                    open_error_dialog(str(error), self)
+
+    def button_load_paths(self):
+        filepath, choosentype = QFileDialog.getOpenFileName(
+            self, "Open File",
+            self.pathsconfig["gen"],
+            "Path file(path.txt;*.txt);;All files (*)")
+
+        if filepath:
+            with open(filepath, "r", encoding="shift_jis-2004", errors="backslashreplace") as f:
+                try:
+                    paths = Paths.from_file(f)
+                    self.pikmin_gen_view.paths = paths
 
                 except Exception as error:
                     print("Error appeared while loading:", error)

@@ -1,8 +1,10 @@
 import sys 
 from yaz0 import decompress
-
+from io import BytesIO
 inputfile = sys.argv[1]
 
 with open(inputfile, "rb") as f:
-    with open(inputfile+".bin", "w+b") as g:
-        decompress(f, g)
+    out = BytesIO()
+    decompress(f, out)
+    with open(inputfile+".bin", "wb") as g:
+        g.write(out.getvalue())

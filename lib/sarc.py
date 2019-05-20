@@ -155,12 +155,13 @@ class SARCArchive(object):
 
         filedata = BytesIO()
         stringtable = StringTable()
-
+        n = 0 
         for filepath, _file in self.files.items():
+            write_pad(filedata, padding)
             offset = filedata.tell()
             filedata.write(_file.getvalue())
             endoffset = filedata.tell()
-            write_pad(filedata, padding)
+            
             stringtable.write_string(filepath)
             stringpos = stringtable.get_string_offset(filepath)
             assert stringpos % 4 == 0

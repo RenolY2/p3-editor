@@ -220,7 +220,28 @@ class AddObjectTopDown(ClickAction):
 
 
 class RotateCamera3D(ClickDragAction):
-    pass
+    def condition(self, editor, buttons, event):
+        return not buttons.is_held(event, "Left") #and editor.mousemode == MOUSE_MODE_NONE)
+
+    def move(self, editor, buttons, event):
+        print("hey")
+        curr_x, curr_y = event.x(), event.y()
+        last_x, last_y = self.first_click.x, self.first_click.y
+
+        diff_x = curr_x - last_x
+        diff_y = curr_y - last_y
+
+        self.first_click = Vector2(curr_x, curr_y)
+
+        editor.camera_horiz = (editor.camera_horiz - diff_x * (pi / 500)) % (2 * pi)
+        editor.camera_vertical = (editor.camera_vertical - diff_y * (pi / 600))
+        if editor.camera_vertical > pi / 2.0:
+            editor.camera_vertical = pi / 2.0
+        elif editor.camera_vertical < -pi / 2.0:
+            editor.camera_vertical = -pi / 2.0
+
+        # print(self.camera_vertical, "hello")
+        editor.do_redraw()
 
 
 class UserControl(object):
@@ -241,11 +262,15 @@ class UserControl(object):
         self.add_action(Gizmo2DRotateY("Gizmo2DRotateY", "Left"))
         self.add_action(AddObjectTopDown("AddObject2D", "Left"))
 
+        self.add_action3d(RotateCamera3D("RotateCamera", "Right"))
 
         self.last_position_update = 0.0
 
     def add_action(self, action):
         self.clickdragactions[action.key].append(action)
+
+    def add_action3d(self, action):
+        self.clickdragactions3d[action.key].append(action)
 
     def handle_press(self, event):
         editor = self._editor_widget
@@ -400,15 +425,12 @@ class UserControl(object):
         editor = self._editor_widget
 
         for key in key_enums.keys():
-            if self.buttons.just_pressed(event, key):
+            if self.buttons.just_released(event, key):
                 for action in self.clickdragactions3d[key]:
                     if action.condition(editor, self.buttons, event):
                         action.just_released(editor, self.buttons, event)
 
         return
-
-        if self.buttons.just_released(event, "Right"):
-            editor.last_move = None
 
         if self.buttons.just_released(event, "Left"):
             if editor.mousemode == MOUSE_MODE_NONE:
@@ -437,7 +459,7 @@ class UserControl(object):
         editor = self._editor_widget
 
         for key in key_enums.keys():
-            if self.buttons.just_pressed(event, key):
+            if self.buttons.is_held(event, key):
                 for action in self.clickdragactions3d[key]:
                     if action.condition(editor, self.buttons, event):
                         action.move(editor, self.buttons, event)
