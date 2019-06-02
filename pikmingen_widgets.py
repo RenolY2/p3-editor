@@ -31,6 +31,8 @@ from gizmo import Gizmo
 from lib.object_models import ObjectModels
 from editor_controls import UserControl
 from lib.libpath import Paths
+import numpy
+
 MOUSE_MODE_NONE = 0
 MOUSE_MODE_MOVEWP = 1
 MOUSE_MODE_ADDWP = 2
@@ -54,6 +56,7 @@ class SelectionQueue(list):
         else:
             return None
 
+
 class GenMapViewer(QtWidgets.QOpenGLWidget):
     mouse_clicked = pyqtSignal(QMouseEvent)
     entity_clicked = pyqtSignal(QMouseEvent, str)
@@ -63,7 +66,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
     position_update = pyqtSignal(QMouseEvent, tuple)
     height_update = pyqtSignal(float)
     select_update = pyqtSignal()
-    move_points = pyqtSignal(float, float)
+    move_points = pyqtSignal(float, float, float)
     connect_update = pyqtSignal(int, int)
     create_waypoint = pyqtSignal(float, float)
     create_waypoint_3d = pyqtSignal(float, float, float)
@@ -189,6 +192,9 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         #self.generic_object = GenericObject()
         self.models = ObjectModels()
         self.grid = Grid(10000, 10000)
+
+        self.modelviewmatrix = None
+        self.projectionmatrix = None
 
     @catch_exception_with_dialog
     def initializeGL(self):
@@ -497,11 +503,20 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
             self.camera_direction = Vector3(look_direction.x * fac, look_direction.y * fac, look_direction.z)
 
+        self.modelviewmatrix = numpy.transpose(numpy.reshape(glGetFloatv(GL_MODELVIEW_MATRIX), (4,4)))
+        self.projectionmatrix = numpy.transpose(numpy.reshape(glGetFloatv(GL_PROJECTION_MATRIX), (4,4)))
+        self.mvp_mat = numpy.dot(self.projectionmatrix, self.modelviewmatrix)
+        self.modelviewmatrix_inv = numpy.linalg.inv(self.modelviewmatrix)
+
         campos = Vector3(self.offset_x, self.camera_height, -self.offset_z)
+        self.campos = campos
+
         if self.mode == MODE_TOPDOWN:
             gizmo_scale = 3*zf
         else:
             gizmo_scale = (self.gizmo.position - campos).norm() / 130.0
+
+        self.gizmo_scale = gizmo_scale
 
         #print(self.gizmo.position, campos)
 
@@ -612,6 +627,13 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
             if p2i not in rendered:
                 self.models.draw_sphere(p2.position, p2.radius/2)
                 rendered[p2i] = True
+        glColor4f(0.0, 1.0, 1.0, 1.0)
+        """for points in self.paths.wide_paths:
+            glBegin(GL_LINE_LOOP)
+            for p in points:
+                glVertex3f(p.x, -p.z, p.y + 5)
+
+            glEnd()"""
 
         self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D)
 
@@ -688,7 +710,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         self.zoom(fac)
 
-    def create_ray_from_mouseclick(self, mousex, mousey):
+    def create_ray_from_mouseclick(self, mousex, mousey, yisup=False):
         self.camera_direction.normalize()
         height = self.canvas_height
         width = self.canvas_width
@@ -717,6 +739,15 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         pos = camerapos + view * 1.0 + h * x + v * y
         dir = pos - camerapos
+
+        if yisup:
+            tmp = pos.y
+            pos.y = -pos.z
+            pos.z = tmp
+
+            tmp = dir.y
+            dir.y = -dir.z
+            dir.z = tmp
 
         return Line(pos, dir)
 

@@ -564,7 +564,7 @@ class GenEditor(QMainWindow):
 
 
     @catch_exception
-    def action_move_objects(self, deltax, deltaz):
+    def action_move_objects(self, deltax, deltay, deltaz):
         for obj in self.pikmin_gen_view.selected:
             """obj.x += deltax
             obj.z += deltaz
@@ -581,6 +581,7 @@ class GenEditor(QMainWindow):
                     obj.y = obj.position_y = round(y, 6)
                     obj.offset_y = 0"""
             obj.position.x += deltax
+            obj.position.y += deltay
             obj.position.z += deltaz
 
         if len(self.pikmin_gen_view.selected) == 1:

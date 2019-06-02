@@ -5,7 +5,7 @@ import abc
 from PyQt5.QtCore import Qt
 from lib.vectors import Vector3, Plane, Vector2
 from gizmo import AXIS_X, AXIS_Y, AXIS_Z
-
+import numpy
 MOUSE_MODE_NONE = 0
 MOUSE_MODE_MOVEWP = 1
 MOUSE_MODE_ADDWP = 2
@@ -161,7 +161,7 @@ class Gizmo2DMoveX(ClickDragAction):
             editor.gizmo.set_render_axis(AXIS_X)
             delta_x = event.x() - self.first_click.x
             self.first_click = Vector2(event.x(), event.y())
-            editor.move_points.emit(delta_x*editor.zoom_factor, 0)
+            editor.move_points.emit(delta_x*editor.zoom_factor, 0, 0)
 
     def just_released(self, editor, buttons, event):
         super().just_released(editor, buttons, event)
@@ -177,7 +177,7 @@ class Gizmo2DMoveZ(Gizmo2DMoveX):
             editor.gizmo.set_render_axis(AXIS_Z)
             delta_z = event.y() - self.first_click.y
             self.first_click = Vector2(event.x(), event.y())
-            editor.move_points.emit(0, delta_z*editor.zoom_factor)
+            editor.move_points.emit(0, 0, delta_z*editor.zoom_factor)
 
 
 class Gizmo2DRotateY(Gizmo2DMoveX):
@@ -244,6 +244,195 @@ class RotateCamera3D(ClickDragAction):
         editor.do_redraw()
 
 
+class Select3D(ClickDragAction):
+    def condition(self, editor, buttons, event):
+        return editor.mousemode == MOUSE_MODE_NONE and not buttons.is_held(event, "Right")
+
+    def just_clicked(self, editor, buttons, event):
+        super().just_clicked(editor, buttons, event)
+
+        editor.selection_queue.append((event.x(), event.y(), 1, 1,
+                                       editor.shift_is_pressed))
+        editor.do_redraw()
+        #editor.selectionbox_projected_2d = (event.x(), event.y())
+
+        editor.camera_direction.normalize()
+
+        ray = editor.create_ray_from_mouseclick(event.x(), event.y())
+        editor.selectionbox_projected_origin = ray.origin + editor.camera_direction * 0.01
+
+
+class AddObject3D(ClickAction):
+    def condition(self, editor, buttons, event):
+        return editor.mousemode == MOUSE_MODE_ADDWP
+
+    def just_clicked(self, editor, buttons, event):
+        ray = editor.create_ray_from_mouseclick(event.x(), event.y())
+        place_at = None
+
+        if editor.collision is not None:
+            place_at = editor.collision.collide_ray(ray)
+
+        if place_at is None:
+            #print("colliding with plane")
+            plane = Plane.xy_aligned(Vector3(0.0, 0.0, 0.0))
+
+            collision = ray.collide_plane(plane)
+            if collision is not False:
+                place_at, _ = collision
+
+        if place_at is not None:
+            editor.create_waypoint_3d.emit(place_at.x, place_at.z, -place_at.y)
+        #else:
+        #    print("nothing collided, aw")
+
+
+vec = numpy.array([1, 0, 0, 0])
+
+
+class Gizmo3DMoveX(Gizmo2DMoveX):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_name = "gizmo_x"
+        self.axis = AXIS_X
+
+    def do_delta(self, delta):
+        return delta, 0, 0
+
+    def move(self, editor, buttons, event):
+        if editor.gizmo.was_hit[self.axis_name]:
+            editor.gizmo.hidden = True
+            editor.gizmo.set_render_axis(self.axis)
+
+            proj = numpy.dot(editor.modelviewmatrix, vec)
+            proj[2] = proj[3] = 0.0
+            proj = proj/numpy.linalg.norm(proj)
+            delta = numpy.array([event.x() - self.first_click.x, event.y() - self.first_click.y, 0, 0])
+            delta[1] = -delta[1]
+            self.first_click = Vector2(event.x(), event.y())
+            delta_x = numpy.dot(delta, proj)
+
+            if editor.shift_is_pressed:
+                editor.move_points.emit(*self.do_delta(delta_x))
+
+            else:
+                fac = 1/3.0
+                editor.move_points.emit(*self.do_delta(delta_x * editor.gizmo_scale * fac))
+
+
+class Gizmo3DMoveY(Gizmo3DMoveX):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_name = "gizmo_y"
+        self.axis = AXIS_Y
+
+    def do_delta(self, delta):
+        return 0, delta, 0
+
+
+class Gizmo3DMoveZ(Gizmo3DMoveX):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_name = "gizmo_z"
+        self.axis = AXIS_Z
+
+    def do_delta(self, delta):
+        return 0, 0, delta
+
+
+class Gizmo3DRotateY(Gizmo2DRotateY):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.angle_start = None
+        self.axis_name = "rotation_y"
+
+    def do_delta(self, delta):
+        return 0, delta, 0
+
+    def flip_rot(self, dir):
+        vec = numpy.array([0, 0, 1])
+        dirvec = numpy.array([dir.x, dir.y, dir.z])
+
+        d = numpy.dot(vec, dirvec)
+
+        if d >= 0:
+            return -1
+        else:
+            return 1
+
+
+    def move(self, editor, buttons, event):
+        if editor.gizmo.was_hit[self.axis_name]:
+            editor.gizmo.hidden = True
+
+            proj = numpy.dot(editor.mvp_mat, numpy.array([
+                editor.gizmo.position.x,
+                -editor.gizmo.position.z,
+                editor.gizmo.position.y,
+                1]
+            ))
+
+            # Dehogomization
+            if proj[3] != 0.0:
+                proj[0] = proj[0] / proj[3]
+                proj[1] = proj[1] / proj[3]
+                proj[2] = proj[2] / proj[3]
+
+            # Transform to editor coords
+            w = editor.canvas_width/2.0
+            h = editor.canvas_height/2.0
+            point_x = proj[0] * w + w
+            point_y = -proj[1] * h + h
+
+            x, y = event.x() - point_x, event.y() - point_y
+            angle = atan2(y, x)
+            if self.angle_start is not None:
+                delta = self.angle_start - angle
+                delta *= self.flip_rot(editor.camera_direction)
+                editor.rotate_current.emit(Vector3(*self.do_delta(degrees(delta))))
+            self.angle_start = angle
+
+
+class Gizmo3DRotateX(Gizmo3DRotateY):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_name = "rotation_x"
+
+    def flip_rot(self, dir):
+        vec = numpy.array([1, 0, 0])
+        dirvec = numpy.array([dir.x, dir.y, dir.z])
+
+        d = numpy.dot(vec, dirvec)
+
+        if d >= 0:
+            return -1
+        else:
+            return 1
+
+    def do_delta(self, delta):
+        return delta, 0, 0
+
+
+class Gizmo3DRotateZ(Gizmo3DRotateY):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_name = "rotation_z"
+
+    def flip_rot(self, dir):
+        vec = numpy.array([0, 1, 0])
+        dirvec = numpy.array([dir.x, dir.y, dir.z])
+
+        d = numpy.dot(vec, dirvec)
+
+        if d >= 0:
+            return -1
+        else:
+            return 1
+
+    def do_delta(self, delta):
+        return 0, 0, delta
+
+
 class UserControl(object):
     def __init__(self, editor_widget):
         self._editor_widget = editor_widget
@@ -263,6 +452,13 @@ class UserControl(object):
         self.add_action(AddObjectTopDown("AddObject2D", "Left"))
 
         self.add_action3d(RotateCamera3D("RotateCamera", "Right"))
+        self.add_action3d(AddObject3D("AddObject3D", "Left"))
+        self.add_action3d(Gizmo3DMoveX("Gizmo3DMoveX", "Left"))
+        self.add_action3d(Gizmo3DMoveY("Gizmo3DMoveY", "Left"))
+        self.add_action3d(Gizmo3DMoveZ("Gizmo3DMoveZ", "Left"))
+        self.add_action3d(Gizmo3DRotateX("Gizmo3DRotateX", "Left"))
+        self.add_action3d(Gizmo3DRotateY("Gizmo3DRotateY", "Left"))
+        self.add_action3d(Gizmo3DRotateZ("Gizmo3DRotateZ", "Left"))
 
         self.last_position_update = 0.0
 
@@ -351,10 +547,6 @@ class UserControl(object):
                         action.just_clicked(editor, self.buttons, event)
 
         return
-        if self.buttons.just_pressed(event, "Right"):
-            # Disallow moving camera while doing selection
-            if not (self.buttons.is_held(event, "Left") and editor.mousemode == MOUSE_MODE_NONE):
-                editor.last_move = (event.x(), event.y())
 
         if self.buttons.just_pressed(event, "Left"):
             # Do selection

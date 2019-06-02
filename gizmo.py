@@ -16,12 +16,13 @@ AXIS_X = 0
 AXIS_Y = 1
 AXIS_Z = 2
 
+
 class Gizmo(Model):
     def __init__(self):
         super().__init__()
 
         self.position = Vector3(0.0, 0.0, 0.0)
-        self.hidden = True#True
+        self.hidden = False#True
 
         self.callbacks = {}
 
@@ -147,6 +148,9 @@ class Gizmo(Model):
         if self.render_axis == AXIS_X:
             glColor4f(1.0, 0.0, 0.0, 1.0)
             self._draw_line(Vector3(-99999, 0, 0), Vector3(99999, 0, 0))
+        elif self.render_axis == AXIS_Y:
+            glColor4f(0.0, 1.0, 0.0, 1.0)
+            self._draw_line(Vector3(0, 0, -99999), Vector3(0, 0, 99999))
         elif self.render_axis == AXIS_Z:
             glColor4f(0.0, 0.0, 1.0, 1.0)
             self._draw_line(Vector3(0, -99999, 0), Vector3(0, 99999, 0))

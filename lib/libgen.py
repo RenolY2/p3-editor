@@ -263,8 +263,12 @@ class GeneratorObject(object):
         for param, values in self.unknown_params.items():
             writer.open_bracket()
             writer.write_string(param)
-            for val in values:
-                writer.write_token(val)
+
+            if param == "mEmitRadius":
+                writer.write_float(values)
+            else:
+                for val in values:
+                    writer.write_token(val)
             writer.close_bracket()
 
         writer.close_bracket()
@@ -289,6 +293,9 @@ class GeneratorObject(object):
                 reader.read_token()
             elif param_name == "mBaseScale":
                 self.scale = reader.read_float()
+                reader.read_token()
+            elif param_name == "mEmitRadius":
+                self.unknown_params[param_name] = reader.read_float()
                 reader.read_token()
             else:
                 unkdata = []

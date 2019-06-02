@@ -29,34 +29,85 @@ class Waypoint(object):
             raise RuntimeError("Too many outgoing links, cannot add more")
         self.outgoing_links.append((link, unkfloat, unkint, unkint2))
 
+    def get_incoming_info(self, index):
+        for val in self.incoming_links:
+            if val[0] == index:
+                return val
+        return None
+
+    def get_outgoing_info(self, index):
+        for val in self.outgoing_links:
+            if val[0] == index:
+                return val
+        return None
+
 
 class Paths(object):
     def __init__(self):
         self.waypoints = []
 
         self.unique_paths = []
+        self.wide_paths = []
+
+        self.path_info = {}
 
     def _regenerate_unique_paths(self):
-        checked = [False for x in self.waypoints]
+        checked = {}
         paths = []
         for waypoint in self.waypoints:
             for link in waypoint.outgoing_links:
                 s = waypoint.index
                 t = link[0]
 
-                if checked[t] is False:
+                if (s,t) not in checked and (t,s) not in checked:
                     paths.append((s, t))
-                    checked[t] = True
+                    checked[s, t] = True
 
-            for link in waypoint.incoming_links:
+            """for link in waypoint.incoming_links:
                 t = waypoint.index
                 s = link[0]
 
-                if checked[t] is False:
+                if (s,t) not in checked or (t,s) not in checked:
                     paths.append((s, t))
-                    checked[t] = True
+                    checked[s, t] = True"""
 
         return paths
+
+    def _regenerate_pathwidths(self):
+        return
+
+        self.wide_paths = []
+        up = Vector3(0, 1, 0)
+
+        for s, t in self.unique_paths:
+            p1 = self.waypoints[s]
+            p2 = self.waypoints[t]
+
+            dir = p2.position - p1.position
+
+            left = dir.cross(up)
+            left.normalize()
+
+            info = p1.get_outgoing_info(p2.index)
+            print("hi", info)
+            if info is not None:
+                info2 = p2.get_incoming_info(p1.index)
+
+                assert info2 is not None
+
+                width1 = info[1]/2
+                width2 = info2[1]/2
+
+                c1 = p1.position - left*width1
+                c2 = p1.position + left*width1
+                c3 = p2.position + left*width2
+                c4 = p2.position - left*width2
+
+                self.wide_paths.append((c1, c2, c3, c4))
+
+
+
+
 
     @classmethod
     def from_file(cls, f):
@@ -89,4 +140,6 @@ class Paths(object):
             paths.waypoints.append(waypoint)
 
         paths.unique_paths = paths._regenerate_unique_paths()
+        paths._regenerate_pathwidths()
+
         return paths

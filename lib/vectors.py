@@ -150,7 +150,7 @@ class Plane(object):
 
     @classmethod
     def yz_aligned(cls, origin):
-        return cls(origin, Vector3(0, 1, 0), Vector3(0, 1, 0))
+        return cls(origin, Vector3(0, 1, 0), Vector3(0, 0, 1))
 
 
 class Triangle(object):
