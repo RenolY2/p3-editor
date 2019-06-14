@@ -1,6 +1,6 @@
 import traceback
 from timeit import default_timer
-from io import TextIOWrapper
+from io import TextIOWrapper, BytesIO, StringIO
 import PyQt5.QtWidgets as QtWidgets
 import PyQt5.QtCore as QtCore
 from PyQt5.QtCore import Qt
@@ -26,9 +26,11 @@ from configuration import read_config, make_default_config, save_cfg
 import pikmingen_widgets as pikwidgets
 from widgets.side_widget import PikminSideWidget
 from widgets.editor_widgets import PikObjectEditor, open_error_dialog, catch_exception_with_dialog
-from pikmingen_widgets import GenMapViewer
+from pikmingen_widgets import GenMapViewer, MODE_TOPDOWN
 from lib.sarc import SARCArchive
 from lib.libpath import Paths
+
+from widgets.file_select import FileSelect
 
 PIKMIN2GEN = "Generator files (defaultgen.txt;initgen.txt;plantsgen.txt;*.txt)"
 
@@ -68,9 +70,14 @@ class GenEditor(QMainWindow):
 
         self.addobjectwindow_last_selected = None
 
+        self.loaded_archive = None
+        self.loaded_archive_file = None
+
 
     @catch_exception
     def reset(self):
+        self.loaded_archive = None
+        self.loaded_archive_file = None
         self.history.reset()
         self.object_to_be_added = None
         self.pikmin_gen_view.reset(keep_collision=True)
@@ -201,6 +208,11 @@ class GenEditor(QMainWindow):
         #self.spawnpoint_action = QAction("Set startPos/Dir", self)
         #self.spawnpoint_action.triggered.connect(self.action_open_rotationedit_window)
         #self.misc_menu.addAction(self.spawnpoint_action)
+        self.goto_action = QAction("Go to Object", self)
+        self.goto_action.triggered.connect(self.do_goto_action)
+        self.goto_action.setShortcut("Ctrl+G")
+        self.misc_menu.addAction(self.goto_action)
+
         self.change_to_topdownview_action = QAction("Topdown View", self)
         self.change_to_topdownview_action.triggered.connect(self.change_to_topdownview)
         self.misc_menu.addAction(self.change_to_topdownview_action)
@@ -219,6 +231,50 @@ class GenEditor(QMainWindow):
         self.menubar.addAction(self.paths_menu.menuAction())
         self.menubar.addAction(self.misc_menu.menuAction())
         self.setMenuBar(self.menubar)
+
+
+        self.last_obj_select_pos = 0
+
+    @catch_exception_with_dialog
+    def do_goto_action(self, a):
+        namecount = {}
+        objlist = {}
+
+        for obj in self.pikmin_gen_file.generators:
+            if obj.name not in namecount:
+                namecount[obj.name] = 1
+                name = obj.name+" (1)"
+                objlist[name] = obj
+            else:
+                namecount[obj.name] += 1
+                name = obj.name+" ({0})".format(namecount[obj.name])
+                objlist[name] = obj
+
+        choice, pos = FileSelect.open_file_list(self, sorted(objlist.keys()),
+                                           "Select Object", self.last_obj_select_pos)
+
+        if choice is not None:
+            self.last_obj_select_pos = pos
+            obj = objlist[choice]
+
+
+            self.pikmin_gen_view.selected = [obj]
+            self.pikmin_gen_view.gizmo.position.x = obj.position.x
+            self.pikmin_gen_view.gizmo.position.y = obj.position.y
+            self.pikmin_gen_view.gizmo.position.z = obj.position.z
+
+            self.pikmin_gen_view.select_update.emit()
+            if self.pikmin_gen_view.mode == MODE_TOPDOWN:
+                self.pikmin_gen_view.offset_z = -obj.position.z
+                self.pikmin_gen_view.offset_x = -obj.position.x
+            else:
+                look = self.pikmin_gen_view.camera_direction.copy()
+
+                pos = obj.position.copy()
+                fac = 200
+                self.pikmin_gen_view.offset_z = -(pos.z + look.y*fac)
+                self.pikmin_gen_view.offset_x = pos.x - look.x*fac
+                self.pikmin_gen_view.camera_height = pos.y - look.z*fac
 
     def change_to_topdownview(self):
         self.pikmin_gen_view.change_from_3d_to_topdown()
@@ -296,23 +352,56 @@ class GenEditor(QMainWindow):
         filepath, choosentype = QFileDialog.getOpenFileName(
             self, "Open File",
             self.pathsconfig["gen"],
-            PIKMIN2GEN + ";;All files (*)")
+            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)")
 
         if filepath:
             print("Resetting editor")
             self.reset()
             print("Reset done")
             print("Chosen file type:", choosentype)
+            if choosentype == "Archived files (*.arc, *.szs)" or filepath.endswith(".szs") or filepath.endswith(".arc"):
+                with open(filepath, "rb") as f:
+                    try:
+                        self.loaded_archive = SARCArchive.from_file(f)
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
+                        return
+                filepaths = [x for x in self.loaded_archive.files.keys()]
+                filepaths.sort()
+                file = FileSelect.open_file_list(self, filepaths)
+                print("selected:", file)
+                self.loaded_archive_file = file
 
-            with open(filepath, "r", encoding="shift_jis-2004", errors="backslashreplace") as f:
+                if file is None:
+                    self.loaded_archive = None
+                    return
+
+                genfile = self.loaded_archive.files[file]
+
                 try:
-                    pikmin_gen_file = GeneratorFile.from_file(f)
+                    pikmin_gen_file = GeneratorFile.from_file(
+                        TextIOWrapper(BytesIO(genfile.getvalue()),  encoding="shift_jis-2004", errors="backslashreplace")
+                    )
+                    genfile.seek(0)
                     self.setup_gen_file(pikmin_gen_file, filepath)
 
                 except Exception as error:
                     print("Error appeared while loading:", error)
                     traceback.print_exc()
                     open_error_dialog(str(error), self)
+
+            else:
+                with open(filepath, "r", encoding="shift_jis-2004", errors="backslashreplace") as f:
+                    try:
+                        pikmin_gen_file = GeneratorFile.from_file(f)
+                        self.setup_gen_file(pikmin_gen_file, filepath)
+
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
 
     def button_load_paths(self):
         filepath, choosentype = QFileDialog.getOpenFileName(
@@ -345,32 +434,62 @@ class GenEditor(QMainWindow):
         save_cfg(self.configuration)
         self.current_gen_path = filepath
 
-    def button_save_level(self):
+    @catch_exception_with_dialog
+    def button_save_level(self, *args, **kwargs):
         if self.current_gen_path is not None:
-            with open(self.current_gen_path, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
-                start = default_timer()
-                try:
+            if self.loaded_archive is not None:
+                assert self.loaded_archive_file is not None
+
+                file = self.loaded_archive.files[self.loaded_archive_file]
+                file.seek(0)
+                tmp = StringIO()
+                writer = GeneratorWriter(tmp)
+                self.pikmin_gen_file.write(writer)
+                file.write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
+                file.seek(0)
+
+                with open(self.current_gen_path, "wb") as f:
+                    self.loaded_archive.to_file(f, compress=self.current_gen_path.endswith(".szs"))
+
+                self.set_has_unsaved_changes(False)
+                self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
+
+            else:
+                with open(self.current_gen_path, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
                     writer = GeneratorWriter(f)
                     self.pikmin_gen_file.write(writer)
                     self.set_has_unsaved_changes(False)
-                except Exception as error:
-                    print("Error appeared while saving:", error)
-                    traceback.print_exc()
-                    open_error_dialog(str(error), self)
-                else:
+
                     self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
-                print("time taken:", default_timer()-start, "s")
         else:
             self.button_save_level_as()
 
-    def button_save_level_as(self):
+    @catch_exception_with_dialog
+    def button_save_level_as(self, *args, **kwargs):
         filepath, choosentype = QFileDialog.getSaveFileName(
             self, "Save File",
             self.pathsconfig["gen"],
-            PIKMIN2GEN + ";;All files (*)")
+            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)")
         if filepath:
-            with open(filepath, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
-                try:
+            if choosentype == "Archived files (*.arc, *.szs)" or filepath.endswith(".arc") or filepath.endswith(".szs"):
+                if self.loaded_archive is None or self.loaded_archive_file is None:
+                    raise RuntimeError("No archive loaded!")
+                else:
+                    file = self.loaded_archive.files[self.loaded_archive_file]
+                    file.seek(0)
+                    tmp = StringIO()
+                    writer = GeneratorWriter(tmp)
+                    self.pikmin_gen_file.write(writer)
+                    file.write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
+                    file.seek(0)
+                    with open(filepath, "wb") as f:
+                        self.loaded_archive.to_file(f, compress=filepath.endswith(".szs"))
+
+                    self.set_has_unsaved_changes(False)
+                    self.statusbar.showMessage("Saved to {0}".format(filepath))
+            else:
+                with open(filepath, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
+
                     writer = GeneratorWriter(f)
                     self.pikmin_gen_file.write(writer)
                     self.set_base_window_title(filepath)
@@ -379,12 +498,7 @@ class GenEditor(QMainWindow):
                     self.current_gen_path = filepath
                     self.set_has_unsaved_changes(False)
 
-                except Exception as error:
-                    print("Error appeared while saving:", error)
-                    traceback.print_exc()
-                    open_error_dialog(str(error), self)
-                else:
-                    self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
+            self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
 
     def button_load_collision(self):
         try:

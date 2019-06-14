@@ -42,7 +42,7 @@ class ObjectModels(object):
     def draw_cylinder_last_position(self, radius, height):
         glPushMatrix()
 
-        glScalef(radius, height, radius)
+        glScalef(radius, radius, height)
 
         self.cylinder.render()
         glPopMatrix()

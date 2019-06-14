@@ -114,7 +114,8 @@ class Model(object):
                 if not rotate:
                     vertices.append((x*scale, y*scale, z*scale))
                 else:
-                    vertices.append((x * scale, z * scale, -y * scale, ))
+                    vertices.append((x * scale, z * scale, y * scale, ))
+
             elif cmd == "l":
                 curr_mesh.lines.append((int(args[1])-1, int(args[2])-1))
             elif cmd == "f":
@@ -128,12 +129,12 @@ class Model(object):
                     #raise RuntimeError("Model needs to be triangulated! Only faces with 3 vertices are supported.")
                     print(args)
                     v1, v2, v3, v4 = map(read_vertex, args[1:5])
-                    curr_mesh.triangles.append(((v1[0] - 1, None), (v2[0] - 1, None), (v3[0] - 1, None)))
-                    curr_mesh.triangles.append(((v3[0] - 1, None), (v4[0] - 1, None), (v1[0] - 1, None)))
+                    curr_mesh.triangles.append(((v1[0] - 1, None), (v3[0] - 1, None), (v2[0] - 1, None)))
+                    curr_mesh.triangles.append(((v3[0] - 1, None), (v1[0] - 1, None), (v4[0] - 1, None)))
 
                 elif len(args) == 4:
                     v1, v2, v3 = map(read_vertex, args[1:4])
-                    curr_mesh.triangles.append(((v1[0]-1, None), (v2[0]-1, None), (v3[0]-1, None)))
+                    curr_mesh.triangles.append(((v1[0]-1, None), (v3[0]-1, None), (v2[0]-1, None)))
         model.add_mesh(curr_mesh)
         return model
         #elif cmd == "vn":
@@ -204,7 +205,7 @@ class GenericObject(Model):
     def render(self, selected=False):
         glEnable(GL_CULL_FACE)
         if selected:
-            glColor4f(1.0, 0.0, 0.0, 1.0)
+            glColor4f(255/255, 223/255, 39/255, 1.0)
         else:
             glColor4f(0.0, 0.0, 0.0, 1.0)
         glCullFace(GL_FRONT)
@@ -223,6 +224,8 @@ class GenericObject(Model):
         self.mesh_list[1].render()
         glColor4ub(0x09, 0x93, 0x00, 0xFF)
         self.mesh_list[0].render()
+        glColor4ub(0x00, 0x00, 0x00, 0xFF)
+        self.mesh_list[2].render()
         glDisable(GL_CULL_FACE)
 
     def render_coloredid(self, id):
@@ -231,6 +234,7 @@ class GenericObject(Model):
         glScalef(1.2, 1.2, 1.2)
         self.mesh_list[1].render()
         glPopMatrix()
+
 
 class TexturedPlane(object):
     def __init__(self, planewidth, planeheight, qimage):

@@ -78,20 +78,6 @@ class PikObjectEditor(QMdiSubWindow):
         self.verticalLayout = QVBoxLayout(self.centralwidget)
         self.verticalLayout.addWidget(self.dummywidget)
 
-
-        # self.goto_id_action = ActionWithOwner("Go To ID", self, action_owner=self)
-
-        #self.addAction(self.goto_id_action)
-
-        #self.goto_shortcut = QKeySequence(Qt.CTRL+Qt.Key_G)
-
-
-        #self.goto_id_action.setShortcut(self.goto_shortcut)
-        #self.goto_id_action.setShortcutContext(Qt.WidgetShortcut)
-        #self.goto_id_action.setAutoRepeat(False)
-
-        #self.goto_id_action.triggered_owner.connect(self.open_new_window)
-
         self.textbox_xml = QTextEdit(self.centralwidget)
         self.button_savetext = QPushButton(self.centralwidget)
         self.button_savetext.setText("Save Object Data")

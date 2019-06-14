@@ -62,6 +62,10 @@ class GeneratorWriter(object):
         res = "{0} {1} {2}".format(string1, string2, string3)
         self.write_token(res)
 
+    def write_float_int(self, f, i):
+        res = "{0} {1}".format(f, i)
+        self.write_token(res)
+
 
 class GeneratorReader(object):
     def __init__ (self, file):
@@ -156,6 +160,7 @@ class GeneratorReader(object):
 
     def read_string(self):
         val = self.read_token()
+        print(val)
         assert val[0] == "\"" and val[-1] == "\""
         return val[1:-1]
 
@@ -178,6 +183,11 @@ class GeneratorReader(object):
 
         return tripple
 
+    def read_float_int(self):
+        val = self.read_token()
+        f, i = val.split(" ")
+        return float(f), int(i)
+
 
 class GeneratorParameters(object):
     pass
@@ -190,7 +200,8 @@ class GeneratorObject(object):
         self.generatorid = generatorid
 
         self.spline = []
-        self.spline_params = None
+        self.spline_float = None
+        self.spline_params = []
 
         self.position = Vector3(0, 0, 0)
         self.rotation = Vector3(0, 0, 0)
@@ -238,7 +249,20 @@ class GeneratorObject(object):
             writer.write_integer(len(self.spline))
             for x, y, z in self.spline:
                 writer.write_vector3f(x, y, z)
-            writer.write_token(self.spline_params)
+
+
+            writer.write_float_int(self.spline_float, len(self.spline_params))
+            for param in self.spline_params:
+                idname, mtype = param
+
+                writer.write_token(idname)
+                writer.open_bracket()
+                writer.open_bracket()
+                writer.write_string("mType")
+                writer.write_integer(mtype)
+                writer.close_bracket()
+                writer.close_bracket()
+
 
     def write_parameters(self, writer:GeneratorWriter):
         writer.open_bracket()
@@ -327,10 +351,19 @@ class GeneratorObject(object):
             for i in range(spline_count):
                 self.spline.append(reader.read_vector3f())
 
-            self.spline_params = reader.read_token()
+            self.spline_float, paramcount = reader.read_float_int()
+            self.spline_params = []
 
-    def render(self):
-        a
+            for i in range(paramcount):
+                param = []
+                idname = reader.read_token()
+                assert reader.read_token() == "{"
+                assert reader.read_token() == "{"
+                assert reader.read_string()== "mType"
+                mtype = reader.read_integer()
+                assert reader.read_token() == "}"
+                assert reader.read_token() == "}"
+                self.spline_params.append((idname, mtype))
 
 
 class GeneratorFile(object):

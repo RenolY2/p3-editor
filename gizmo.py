@@ -16,6 +16,11 @@ AXIS_X = 0
 AXIS_Y = 1
 AXIS_Z = 2
 
+X_COLOR = (1.0, 0.1, 0.1, 1.0)
+Y_COLOR = (0.0, 1.0, 0.0, 1.0)
+Z_COLOR = (0.0, 0.0, 1.0, 1.0)
+MIDDLE = (0.5, 0.5, 0.5, 1.0)
+
 
 class Gizmo(Model):
     def __init__(self):
@@ -113,19 +118,19 @@ class Gizmo(Model):
     @catch_exception
     def render(self, is3d=True):
         if not self.hidden:
-            glColor4f(1.0, 0.0, 0.0, 1.0)
+            glColor4f(*X_COLOR)
             self.named_meshes["gizmo_x"].render()
             if is3d: self.named_meshes["rotation_x"].render()
 
 
 
-            glColor4f(0.0, 1.0, 0.0, 1.0)
+            glColor4f(*Y_COLOR)
             if is3d: self.named_meshes["gizmo_y"].render()
             self.named_meshes["rotation_y"].render()
-            glColor4f(0.0, 0.0, 1.0, 1.0)
+            glColor4f(*Z_COLOR)
             self.named_meshes["gizmo_z"].render()
             if is3d: self.named_meshes["rotation_z"].render()
-            glColor4f(0.5, 0.5, 0.5, 1.0)
+            glColor4f(*MIDDLE)
             self.named_meshes["middle"].render()
             """for mesh in self.mesh_list:
                 if "_x" in mesh.name:
@@ -146,13 +151,13 @@ class Gizmo(Model):
         glTranslatef(self.position.x, -self.position.z, self.position.y)
 
         if self.render_axis == AXIS_X:
-            glColor4f(1.0, 0.0, 0.0, 1.0)
+            glColor4f(*X_COLOR)
             self._draw_line(Vector3(-99999, 0, 0), Vector3(99999, 0, 0))
         elif self.render_axis == AXIS_Y:
-            glColor4f(0.0, 1.0, 0.0, 1.0)
+            glColor4f(*Y_COLOR)
             self._draw_line(Vector3(0, 0, -99999), Vector3(0, 0, 99999))
         elif self.render_axis == AXIS_Z:
-            glColor4f(0.0, 0.0, 1.0, 1.0)
+            glColor4f(*Z_COLOR)
             self._draw_line(Vector3(0, -99999, 0), Vector3(0, 99999, 0))
 
 

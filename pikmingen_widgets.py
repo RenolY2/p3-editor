@@ -503,6 +503,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
             self.camera_direction = Vector3(look_direction.x * fac, look_direction.y * fac, look_direction.z)
 
+            #print(self.camera_direction)
+
         self.modelviewmatrix = numpy.transpose(numpy.reshape(glGetFloatv(GL_MODELVIEW_MATRIX), (4,4)))
         self.projectionmatrix = numpy.transpose(numpy.reshape(glGetFloatv(GL_PROJECTION_MATRIX), (4,4)))
         self.mvp_mat = numpy.dot(self.projectionmatrix, self.modelviewmatrix)
@@ -634,9 +636,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 glVertex3f(p.x, -p.z, p.y + 5)
 
             glEnd()"""
-
+        glClear(GL_DEPTH_BUFFER_BIT)
         self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D)
-
         glDisable(GL_DEPTH_TEST)
         if self.selectionbox_start is not None and self.selectionbox_end is not None:
             #print("drawing box")

@@ -224,7 +224,6 @@ class RotateCamera3D(ClickDragAction):
         return not buttons.is_held(event, "Left") #and editor.mousemode == MOUSE_MODE_NONE)
 
     def move(self, editor, buttons, event):
-        print("hey")
         curr_x, curr_y = event.x(), event.y()
         last_x, last_y = self.first_click.x, self.first_click.y
 
@@ -295,6 +294,7 @@ class Gizmo3DMoveX(Gizmo2DMoveX):
         super().__init__(*args, **kwargs)
         self.axis_name = "gizmo_x"
         self.axis = AXIS_X
+        self.dir = numpy.array([1, 0, 0, 0])
 
     def do_delta(self, delta):
         return delta, 0, 0
@@ -304,7 +304,7 @@ class Gizmo3DMoveX(Gizmo2DMoveX):
             editor.gizmo.hidden = True
             editor.gizmo.set_render_axis(self.axis)
 
-            proj = numpy.dot(editor.modelviewmatrix, vec)
+            proj = numpy.dot(editor.modelviewmatrix, self.dir)
             proj[2] = proj[3] = 0.0
             proj = proj/numpy.linalg.norm(proj)
             delta = numpy.array([event.x() - self.first_click.x, event.y() - self.first_click.y, 0, 0])
@@ -325,6 +325,7 @@ class Gizmo3DMoveY(Gizmo3DMoveX):
         super().__init__(*args, **kwargs)
         self.axis_name = "gizmo_y"
         self.axis = AXIS_Y
+        self.dir = numpy.array([0, 1, 0, 0])
 
     def do_delta(self, delta):
         return 0, delta, 0
@@ -335,6 +336,7 @@ class Gizmo3DMoveZ(Gizmo3DMoveX):
         super().__init__(*args, **kwargs)
         self.axis_name = "gizmo_z"
         self.axis = AXIS_Z
+        self.dir = numpy.array([0, 0, -1, 0])
 
     def do_delta(self, delta):
         return 0, 0, delta
