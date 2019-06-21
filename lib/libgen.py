@@ -1,12 +1,33 @@
 from collections import OrderedDict
 from copy import deepcopy
-from .vectors import Vector3
+
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), os.path.pardir))
+from lib.vectors import Vector3
+
+
+class GenSyntaxError(Exception):
+    def __init__(self, message, data):
+        self.message = message
+        self.data = data
+
+    def __str__(self):
+        if self.data["value"] is not None:
+            return "{0} on line {1}: {2}".format(self.message, self.data["line"],  self.data["value"])
+        else:
+            return "{0} on line {1}".format(self.message, self.data["line"])
+
+
+def syntax_assert(check, msg, line, token=None):
+    if not check:
+        raise GenSyntaxError(msg, data={"line": line, "value": token})
 
 
 class GeneratorWriter(object):
     def __init__(self, file):
         self.f = file
-        self.current_line = 1
+        self.current_line = 0
 
         self.indent = 0
 
@@ -21,6 +42,7 @@ class GeneratorWriter(object):
             self.f.write(comment)
 
         self.f.write("\n")
+        self.current_line += 1
 
     def write_comment(self, comment):
         if not comment.startswith("//") and not comment.startswith("#"):
@@ -66,14 +88,21 @@ class GeneratorWriter(object):
         res = "{0} {1}".format(f, i)
         self.write_token(res)
 
+    def write_int_string(self, i, s):
+        assert isinstance(i, int)
+        self.write_token("{0} \"{1}\"".format(i, s))
+
 
 class GeneratorReader(object):
     def __init__ (self, file):
         self.f = file
-        self.current_line = 1
+        self.current_line = 0
 
     def read_token(self):
+        self.f.tell()  # <--- EXTREMELY IMPORTANT, do not remove or bugs will appear on parsing
         line = self.f.readline()
+        #print("pos", hex(curr), "Line", line)
+        #print(hex(self.f.tell()))
         self.current_line += 1
         if not line:
             return ""
@@ -93,10 +122,16 @@ class GeneratorReader(object):
         return line.strip()
 
     def peek_token(self):
+        #print("next is a peek")
         curr = self.f.tell()
+        currline = self.current_line
         next_token = self.read_token()
+        self.current_line = currline
 
         self.f.seek(curr)
+        #print(curr, self.f.tell())
+        assert curr == self.f.tell()
+        #print("peek done, result:", next_token)
         return next_token
 
     def read_section_rest_raw(self):
@@ -160,8 +195,11 @@ class GeneratorReader(object):
 
     def read_string(self):
         val = self.read_token()
-        print(val)
-        assert val[0] == "\"" and val[-1] == "\""
+        #print(val)
+
+        #assert val[0] == "\"" and val[-1] == "\""
+        syntax_assert(val[0] == "\"" and val[-1] == "\"",
+                      "Malformed String", self.current_line, val)
         return val[1:-1]
 
     def read_string_tripple(self):
@@ -186,7 +224,18 @@ class GeneratorReader(object):
     def read_float_int(self):
         val = self.read_token()
         f, i = val.split(" ")
+
         return float(f), int(i)
+
+    def read_int_string(self):
+        val = self.read_token()
+        i, s = val.split(" ")
+        s = s.strip()
+
+        syntax_assert(s[0] == "\"" and s[-1] == "\"",
+                      "Malformed String", self.current_line, val)
+
+        return int(i), s[1:-1]
 
 
 class GeneratorParameters(object):
@@ -228,7 +277,9 @@ class GeneratorObject(object):
 
     @classmethod
     def from_generator_file(cls, reader: GeneratorReader):
+
         name = reader.read_string()
+        #print("NOW WE ARE DOING ", name)
         version = reader.read_string()
         generatorid = reader.read_string_tripple()
         gen = cls(name, version, generatorid)
@@ -250,17 +301,16 @@ class GeneratorObject(object):
             for x, y, z in self.spline:
                 writer.write_vector3f(x, y, z)
 
-
             writer.write_float_int(self.spline_float, len(self.spline_params))
-            for param in self.spline_params:
-                idname, mtype = param
 
-                writer.write_token(idname)
+            for id, name, params in self.spline_params:
+                writer.write_int_string(id, name)
                 writer.open_bracket()
-                writer.open_bracket()
-                writer.write_string("mType")
-                writer.write_integer(mtype)
-                writer.close_bracket()
+                for paramname, paramval in params.items():
+                    writer.open_bracket()
+                    writer.write_string(paramname)
+                    writer.write_token(paramval)
+                    writer.close_bracket()
                 writer.close_bracket()
 
 
@@ -291,8 +341,17 @@ class GeneratorObject(object):
             if param == "mEmitRadius":
                 writer.write_float(values)
             else:
+                level = 0
                 for val in values:
-                    writer.write_token(val)
+                    if val == "{":
+                        writer.open_bracket()
+                        level += 1
+                    elif val == "}":
+                        writer.close_bracket()
+                        level -= 1
+                    else:
+                        writer.write_token(val)
+                syntax_assert(level==0, "Bracket mismatch", writer.current_line)
             writer.close_bracket()
 
         writer.close_bracket()
@@ -355,15 +414,24 @@ class GeneratorObject(object):
             self.spline_params = []
 
             for i in range(paramcount):
-                param = []
-                idname = reader.read_token()
+                id, splinename = reader.read_int_string()
+
                 assert reader.read_token() == "{"
-                assert reader.read_token() == "{"
-                assert reader.read_string()== "mType"
-                mtype = reader.read_integer()
-                assert reader.read_token() == "}"
-                assert reader.read_token() == "}"
-                self.spline_params.append((idname, mtype))
+                next = reader.read_token()
+                assert next != ""
+                params = OrderedDict()
+
+                while next != "}":
+                    assert next == "{"
+                    paramname = reader.read_string()
+                    paramval = reader.read_token()
+                    assert reader.read_token() == "}"
+
+                    next = reader.read_token()
+
+                    params[paramname] = paramval
+
+                self.spline_params.append((id, splinename, params))
 
 
 class GeneratorFile(object):
@@ -374,25 +442,32 @@ class GeneratorFile(object):
     def from_file(cls, f):
         genfile = cls()
         reader = GeneratorReader(f)
+        try:
+            start = reader.read_token()
+            if start != "{":
+                raise RuntimeError("Expected file to start with '{'")
 
-        start = reader.read_token()
-        if start != "{":
-            raise RuntimeError("Expected file to start with '{'")
-
-        next = reader.peek_token()
-        if next == "":
-            raise RuntimeError("Malformed file, expected generator object or '}'")
-
-        while next != "}":
-            generator = GeneratorObject.from_generator_file(reader)
-
-            genfile.generators.append(generator)
             next = reader.peek_token()
-
             if next == "":
                 raise RuntimeError("Malformed file, expected generator object or '}'")
 
-        return genfile
+            while next != "}":
+                generator = GeneratorObject.from_generator_file(reader)
+                #print(generator.name)
+                genfile.generators.append(generator)
+                next = reader.peek_token()
+                #assert reader.peek_token() == next
+                #assert reader.peek_token() == next
+                #print(reader.peek_token())
+                #print(reader.peek_token())
+                if next == "":
+                    raise RuntimeError("Malformed file, expected generator object or '}'")
+
+            return genfile
+
+        except Exception as e:
+            print("Last line:", reader.current_line)
+            raise
 
     def write(self, writer: GeneratorWriter):
         writer.open_bracket()

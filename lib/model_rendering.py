@@ -1,17 +1,23 @@
 from OpenGL.GL import *
 from .vectors import Vector3
 from struct import unpack
+import os
 from OpenGL.GL import *
+
+from PyQt5 import QtGui
 
 
 def read_vertex(v_data):
     split = v_data.split("/")
-    if len(split) == 3:
-        vnormal = int(split[2])
+    if len(split) >= 2:
+        if split[1] == "":
+            texcoord = None
+        else:
+            texcoord = int(split[1]) - 1
     else:
-        vnormal = None
+        texcoord = None
     v = int(split[0])
-    return v, vnormal
+    return v, texcoord
 
 
 class Mesh(object):
@@ -60,6 +66,96 @@ class Mesh(object):
     def render_colorid(self, id):
         glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
         self.render()
+
+
+class TexturedMesh(object):
+    def __init__(self, material):
+        self.triangles = []
+        self.vertex_positions = []
+        self.vertex_texcoords = []
+
+        self.material = material
+        self._displist = None
+
+    def generate_displist(self):
+        if self._displist is not None:
+            glDeleteLists(self._displist, 1)
+
+        displist = glGenLists(1)
+        glNewList(displist, GL_COMPILE)
+        glBegin(GL_TRIANGLES)
+
+        if self.material.tex is not None:
+            glBindTexture(GL_TEXTURE_2D, self.material.tex)
+
+        for triangle in self.triangles:
+            assert len(triangle) == 3
+            for vi, ti in triangle:
+                if self.material.tex is not None and ti is not None:
+                    glTexCoord2f(*self.vertex_texcoords[ti])
+                glVertex3f(*self.vertex_positions[vi])
+
+        glEnd()
+        glEndList()
+        self._displist = displist
+
+    def render(self, selected=False):
+        if self._displist is None:
+            self.generate_displist()
+
+        if self.material.tex is not None:
+            glEnable(GL_TEXTURE_2D)
+        else:
+            glDisable(GL_TEXTURE_2D)
+
+        if not selected:
+            if self.material.diffuse is not None:
+                glColor3f(*self.material.diffuse)
+            else:
+                glColor3f(1.0, 1.0, 1.0)
+        else:
+            glColor4f(255 / 255, 223 / 255, 39 / 255, 1.0)
+
+        glCallList(self._displist)
+
+    def render_coloredid(self, id):
+
+        if self._displist is None:
+            self.generate_displist()
+        glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+        glCallList(self._displist)
+
+
+
+
+class Material(object):
+    def __init__(self, diffuse=None, texturepath=None):
+        if texturepath is not None:
+            ID = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, ID)
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0)
+
+            if texturepath.endswith(".png"):
+                fmt = "png"
+            elif texturepath.endswith(".jpg"):
+                fmt = "jpg"
+            else:
+                raise RuntimeError("unknown tex format: {0}".format(texturepath))
+
+            qimage = QtGui.QImage(texturepath, "fmt")
+
+            imgdata = bytes(qimage.bits().asarray(qimage.width() * qimage.height() * 4))
+            glTexImage2D(GL_TEXTURE_2D, 0, 4, qimage.width(), qimage.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, imgdata)
+
+            del qimage
+
+            self.tex = ID
+        else:
+            self.tex = None
+
+        self.diffuse = diffuse
 
 
 class Model(object):
@@ -142,6 +238,148 @@ class Model(object):
         #    normals.append((nx, ny, nz))
 
 
+class TexturedModel(object):
+    def __init__(self):
+        self.mesh_list = []
+
+    def render(self, selected=False):
+        for mesh in self.mesh_list:
+            mesh.render(selected)
+
+    def render_coloredid(self, id):
+        for mesh in self.mesh_list:
+            mesh.render_coloredid(id)
+
+    #def render_coloredid(self, id):
+    #    glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+    #    self.render()
+
+    """def add_mesh(self, mesh: Mesh):
+        if mesh.name not in self.named_meshes:
+            self.named_meshes[mesh.name] = mesh
+            self.mesh_list.append(mesh)
+        elif mesh.name != "":
+            raise RuntimeError("Duplicate mesh name: {0}".format(mesh.name))
+        else:
+            self.mesh_list.append(mesh)"""
+
+    @classmethod
+    def from_obj_path(cls, objfilepath, scale=1.0, rotate=False):
+
+
+        model = cls()
+        vertices = []
+        texcoords = []
+
+        default_mesh = TexturedMesh(Material(diffuse=(1.0, 1.0, 1.0)))
+        default_mesh.vertex_positions = vertices
+        default_mesh.vertex_texcoords = texcoords
+        material_meshes = {}
+        materials = {}
+
+        currmat = None
+
+        objpath = os.path.dirname(objfilepath)
+        with open(objfilepath, "r") as f:
+            for line in f:
+                line = line.strip()
+                args = line.split(" ")
+
+                if len(args) == 0 or line.startswith("#"):
+                    continue
+                cmd = args[0]
+
+                if cmd == "mtllib":
+                    mtlpath = args[1]
+                    if not os.path.isabs(mtlpath):
+                        mtlpath = os.path.join(objpath, mtlpath)
+
+                    with open(mtlpath, "r") as g:
+                        lastmat = None
+                        lastdiffuse = None
+                        lasttex = None
+                        for mtl_line in g:
+                            mtl_line = mtl_line.strip()
+                            mtlargs = mtl_line.split(" ")
+
+                            if len(mtlargs) == 0 or mtl_line.startswith("#"):
+                                continue
+                            if mtlargs[0] == "newmtl":
+                                if lastmat is not None:
+                                    if not os.path.isabs(lasttex):
+                                        lasttex = os.path.join(objpath, lasttex)
+                                    materials[lastmat] = Material(diffuse=lastdiffuse, texturepath=lasttex)
+                                    lastdiffuse = None
+                                    lasttex = None
+
+                                lastmat = " ".join(mtlargs[1:])
+                            elif mtlargs[0] == "Kd":
+                                r, g, b = map(float, mtlargs[1:4])
+                                lastdiffuse = (r,g,b)
+                            elif mtlargs[0] == "map_Kd":
+                                lasttex = " ".join(mtlargs[1:])
+
+                        if lastmat is not None:
+                            materials[lastmat] = Material(diffuse=lastdiffuse, texturepath=lasttex)
+                            lastdiffuse = None
+                            lasttex = None
+
+                elif cmd == "usemtl":
+                    mtlname = " ".join(args[1:])
+                    currmat = mtlname
+                    if currmat not in material_meshes:
+                        material_meshes[currmat] = TexturedMesh(materials[currmat])
+                        material_meshes[currmat].vertex_positions = vertices
+                        material_meshes[currmat].vertex_texcoords = texcoords
+
+                elif cmd == "v":
+                    if "" in args:
+                        args.remove("")
+                    x, y, z = map(float, args[1:4])
+                    if not rotate:
+                        vertices.append((x*scale, y*scale, z*scale))
+                    else:
+                        vertices.append((x * scale, z * scale, y * scale, ))
+
+                elif cmd == "vt":
+                    if "" in args:
+                        args.remove("")
+                    #x, y, z = map(float, args[1:4])
+                    #if not rotate:
+                    texcoords.append((float(args[1]), 1-float(args[2])  ))
+                    #else:
+                    #    vertices.append((x, y, ))
+
+                #elif cmd == "l":
+                #    curr_mesh.lines.append((int(args[1])-1, int(args[2])-1))
+                elif cmd == "f":
+                    if currmat is None:
+                        faces = default_mesh.triangles
+                    else:
+                        faces = material_meshes[currmat].triangles
+
+                    # if it uses more than 3 vertices to describe a face then we panic!
+                    # no triangulation yet.
+                    if len(args) == 5:
+                        #raise RuntimeError("Model needs to be triangulated! Only faces with 3 vertices are supported.")
+                        v1, v2, v3, v4 = map(read_vertex, args[1:5])
+                        faces.append(((v1[0] - 1, v1[1]), (v3[0] - 1, v3[1]), (v2[0] - 1, v2[1])))
+                        faces.append(((v3[0] - 1, v3[1]), (v1[0] - 1, v1[1]), (v4[0] - 1, v4[1])))
+
+                    elif len(args) == 4:
+                        v1, v2, v3 = map(read_vertex, args[1:4])
+                        faces.append(((v1[0]-1, v1[1]), (v3[0]-1, v3[1]), (v2[0]-1, v2[1])))
+
+            if len(default_mesh.triangles) > 0:
+                model.mesh_list.append(default_mesh)
+
+            for mesh in material_meshes.values():
+                model.mesh_list.append(mesh)
+            #model.add_mesh(curr_mesh)
+            return model
+            #elif cmd == "vn":
+            #    nx, ny, nz = map(float, args[1:4])
+            #    normals.append((nx, ny, nz))
 
 
 ALPHA = 0.8

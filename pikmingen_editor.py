@@ -99,7 +99,7 @@ class GenEditor(QMainWindow):
         self.current_gen_path = None
         self.pik_control.reset_info()
         self.pik_control.button_add_object.setChecked(False)
-        self.pik_control.button_move_object.setChecked(False)
+        #self.pik_control.button_move_object.setChecked(False)
         self._window_title = ""
         self._user_made_change = False
 
@@ -317,7 +317,7 @@ class GenEditor(QMainWindow):
         self.pik_control.button_edit_object.pressed.connect(self.action_open_editwindow)
 
         self.pik_control.button_add_object.pressed.connect(self.button_open_add_item_window)
-        self.pik_control.button_move_object.pressed.connect(self.button_move_objects)
+        #self.pik_control.button_move_object.pressed.connect(self.button_move_objects)
         self.pikmin_gen_view.move_points.connect(self.action_move_objects)
         self.pikmin_gen_view.height_update.connect(self.action_change_object_heights)
         self.pikmin_gen_view.create_waypoint.connect(self.action_add_object)
@@ -370,7 +370,7 @@ class GenEditor(QMainWindow):
                         return
                 filepaths = [x for x in self.loaded_archive.files.keys()]
                 filepaths.sort()
-                file = FileSelect.open_file_list(self, filepaths)
+                file, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file")
                 print("selected:", file)
                 self.loaded_archive_file = file
 
@@ -382,7 +382,7 @@ class GenEditor(QMainWindow):
 
                 try:
                     pikmin_gen_file = GeneratorFile.from_file(
-                        TextIOWrapper(BytesIO(genfile.getvalue()),  encoding="shift_jis-2004", errors="backslashreplace")
+                        TextIOWrapper(BytesIO(genfile.getvalue()), errors="replace")
                     )
                     genfile.seek(0)
                     self.setup_gen_file(pikmin_gen_file, filepath)
@@ -393,7 +393,7 @@ class GenEditor(QMainWindow):
                     open_error_dialog(str(error), self)
 
             else:
-                with open(filepath, "r", encoding="shift_jis-2004", errors="backslashreplace") as f:
+                with open(filepath, "r", encoding="shift-jis-2004", errors="replace") as f:
                     try:
                         pikmin_gen_file = GeneratorFile.from_file(f)
                         self.setup_gen_file(pikmin_gen_file, filepath)
@@ -410,7 +410,7 @@ class GenEditor(QMainWindow):
             "Path file(path.txt;*.txt);;All files (*)")
 
         if filepath:
-            with open(filepath, "r", encoding="shift_jis-2004", errors="backslashreplace") as f:
+            with open(filepath, "r", encoding="shift_jis-2004") as f:
                 try:
                     paths = Paths.from_file(f)
                     self.pikmin_gen_view.paths = paths
@@ -606,7 +606,7 @@ class GenEditor(QMainWindow):
             if self.object_to_be_added is not None:
                 self.addobjectwindow_last_selected = self.add_object_window.template_menu.currentIndex()
                 self.pik_control.button_add_object.setChecked(True)
-                self.pik_control.button_move_object.setChecked(False)
+                #self.pik_control.button_move_object.setChecked(False)
                 self.pikmin_gen_view.set_mouse_mode(pikwidgets.MOUSE_MODE_ADDWP)
                 self.add_object_window.destroy()
                 self.add_object_window = None
@@ -649,7 +649,7 @@ class GenEditor(QMainWindow):
         newobj.position_z = newobj.z = round(z, 6)
         newobj.offset_x = newobj.offset_y = newobj.offset_z = 0.0
 
-        self.pikmin_gen_file.objects.append(newobj)
+        self.pikmin_gen_file.generators.append(newobj)
         # self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
 
@@ -669,12 +669,12 @@ class GenEditor(QMainWindow):
     def shortcut_move_objects(self):
         if self.pikmin_gen_view.mousemode == pikwidgets.MOUSE_MODE_MOVEWP:
             self.pikmin_gen_view.set_mouse_mode(pikwidgets.MOUSE_MODE_NONE)
-            self.pik_control.button_move_object.setChecked(False)
+            #self.pik_control.button_move_object.setChecked(False)
 
         else:
             self.pikmin_gen_view.set_mouse_mode(pikwidgets.MOUSE_MODE_MOVEWP)
             self.pik_control.button_add_object.setChecked(False)
-            self.pik_control.button_move_object.setChecked(True)
+            #self.pik_control.button_move_object.setChecked(True)
 
 
     @catch_exception
@@ -728,7 +728,7 @@ class GenEditor(QMainWindow):
         if event.key() == Qt.Key_Escape:
             self.pikmin_gen_view.set_mouse_mode(pikwidgets.MOUSE_MODE_NONE)
             self.pik_control.button_add_object.setChecked(False)
-            self.pik_control.button_move_object.setChecked(False)
+            #self.pik_control.button_move_object.setChecked(False)
             if self.add_object_window is not None:
                 self.add_object_window.close()
 
@@ -795,15 +795,15 @@ class GenEditor(QMainWindow):
         for obj in self.pikmin_gen_view.selected:
             if self.pikmin_gen_view.collision is None:
                 return None
-            height = self.pikmin_gen_view.collision.collide_ray_downwards(obj.x, obj.z)
+            height = self.pikmin_gen_view.collision.collide_ray_downwards(obj.position.x, obj.position.z)
 
             if height is not None:
-                obj.position_y = obj.y = round(height, 6)
-                obj.offset_y = 0.0
+                obj.position.y = height
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, (obj.x, obj.y, obj.z), obj.get_rotation())
+            self.pik_control.set_info(obj, obj.position, obj.rotation)
+        self.pikmin_gen_view.gizmo.move_to_average(self.pikmin_gen_view.selected)
         self.set_has_unsaved_changes(True)
         self.pikmin_gen_view.do_redraw()
 
@@ -819,6 +819,7 @@ class GenEditor(QMainWindow):
         self.pikmin_gen_view.selected = []
 
         self.pik_control.reset_info()
+        self.pikmin_gen_view.gizmo.hidden = True
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
         self.history.add_history_removeobjects(tobedeleted)
@@ -833,7 +834,7 @@ class GenEditor(QMainWindow):
 
         if action == "AddObject":
             obj = val
-            self.pikmin_gen_file.objects.remove(obj)
+            self.pikmin_gen_file.generators.remove(obj)
             if obj in self.editing_windows:
                 self.editing_windows[obj].destroy()
                 del self.editing_windows[obj]
@@ -844,13 +845,14 @@ class GenEditor(QMainWindow):
                 self.pik_control.reset_info()
             if obj in self.pikmin_gen_view.selected:
                 self.pikmin_gen_view.selected.remove(obj)
+                self.pikmin_gen_view.gizmo.hidden = True
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
 
         if action == "RemoveObjects":
             for obj in val:
-                self.pikmin_gen_file.objects.append(obj)
+                self.pikmin_gen_file.generators.append(obj)
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
@@ -866,14 +868,14 @@ class GenEditor(QMainWindow):
 
         if action == "AddObject":
             obj = val
-            self.pikmin_gen_file.objects.append(obj)
+            self.pikmin_gen_file.generators.append(obj)
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
 
         if action == "RemoveObjects":
             for obj in val:
-                self.pikmin_gen_file.objects.remove(obj)
+                self.pikmin_gen_file.generators.remove(obj)
                 if obj in self.editing_windows:
                     self.editing_windows[obj].destroy()
                     del self.editing_windows[obj]
@@ -884,6 +886,7 @@ class GenEditor(QMainWindow):
                     self.pik_control.reset_info()
                 if obj in self.pikmin_gen_view.selected:
                     self.pikmin_gen_view.selected.remove(obj)
+                    self.pikmin_gen_view.gizmo.hidden = True
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()

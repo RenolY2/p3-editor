@@ -47,7 +47,17 @@ class SelectionQueue(list):
         super().__init__()
 
     def queue_selection(self, x, y, width, height, shift_pressed, do_gizmo=False):
+        if do_gizmo:
+            for i in self:
+                if i[-1] is True:
+                    return
         self.append((x, y, width, height, shift_pressed, do_gizmo))
+
+    def clear(self):
+        tmp = [x for x in self]
+        for val in tmp:
+            if tmp[-1] is True:
+                self.remove(tmp)
 
     def queue_pop(self):
         if len(self) > 0:
@@ -208,6 +218,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         glEnd()
         glEndList()
 
+        self.models.init_gl()
+
     def resizeGL(self, width, height):
         # Called upon window resizing: reinitialize the viewport.
         # update the window size
@@ -266,7 +278,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         self._lasttime = now
 
     def handle_arrowkey_scroll(self, timedelta):
-        if self.selectionbox_projected_origin is not None:
+        if self.selectionbox_projected_coords is not None:
             return
 
         diff_x = diff_y = 0
@@ -302,7 +314,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
             self.do_redraw()
 
     def handle_arrowkey_scroll_3d(self, timedelta):
-        if self.selectionbox_projected_origin is not None:
+        if self.selectionbox_projected_coords is not None:
             return
 
         diff_x = diff_y = diff_height = 0
@@ -358,8 +370,11 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         self.MOVE_LEFT = left
         self.MOVE_RIGHT = right
 
-    def do_redraw(self):
+    def do_redraw(self, force=False):
         self._frame_invalid = True
+        if force:
+            self._lastrendertime = 0
+            self.update()
 
     def reset(self, keep_collision=False):
         self.overlapping_wp_index = 0
@@ -459,6 +474,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
     #@catch_exception_with_dialog
     @catch_exception
     def paintGL(self):
+        start = default_timer()
         offset_x = self.offset_x
         offset_z = self.offset_z
 
@@ -516,7 +532,9 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         if self.mode == MODE_TOPDOWN:
             gizmo_scale = 3*zf
         else:
+
             gizmo_scale = (self.gizmo.position - campos).norm() / 130.0
+
 
         self.gizmo_scale = gizmo_scale
 
@@ -524,10 +542,12 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         while len(self.selectionqueue) > 0:
             glClearColor(1.0, 1.0, 1.0, 0.0)
-            #print("received request")
+            #
             click_x, click_y, clickwidth, clickheight, shiftpressed, do_gizmo = self.selectionqueue.queue_pop()
             click_y = height - click_y
             hit = 0xFF
+
+            print("received request", do_gizmo)
 
             if clickwidth == 1 and clickheight == 1:
                 self.gizmo.render_collision_check(gizmo_scale, is3d=self.mode == MODE_3D)
@@ -536,13 +556,15 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 hit = pixels[2]
                 if do_gizmo and hit != 0xFF:
                     self.gizmo.run_callback(hit)
-                if hit != 0xFF:
                     self.gizmo.was_hit_at_all = True
+                #if hit != 0xFF and do_:
+
 
             glClearColor(1.0, 1.0, 1.0, 0.0)
 
-            if self.pikmin_generators is not None and hit == 0xFF:
+            if self.pikmin_generators is not None and hit == 0xFF and not do_gizmo:
                 objects = self.pikmin_generators.generators
+                glDisable(GL_TEXTURE_2D)
                 for i, pikminobject in enumerate(objects):
                     self.models.render_object_coloredid(pikminobject, i)
 
@@ -566,6 +588,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                         if pixels[i*3 + 1] != 0xFF:
                             index = (pixels[i*3 + 1] << 8) | pixels[i*3 + 2]
                             #print(index)
+
                             pikminobject = objects[index]
                             selected[pikminobject] = True
                 #print("select time taken", default_timer() - start)
@@ -583,10 +606,12 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                     self.select_update.emit()
 
                 self.gizmo.move_to_average(self.selected)
-
+                if len(selected) > 0:
+                    print("Select did register")
                 if self.mode == MODE_3D: # In case of 3D mode we need to update scale due to changed gizmo position
                     gizmo_scale = (self.gizmo.position - campos).norm() / 130.0
                 #print("total time taken", default_timer() - start)
+        print("gizmo status", self.gizmo.was_hit_at_all)
         glClearColor(1.0, 1.0, 1.0, 0.0)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -597,9 +622,11 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
             glCallList(self.main_model)
 
         glColor4f(1.0, 1.0, 1.0, 1.0)
-        if self.mode == MODE_TOPDOWN:
-            glDisable(GL_DEPTH_TEST)
         self.grid.render()
+        if self.mode == MODE_TOPDOWN:
+            glClear(GL_DEPTH_BUFFER_BIT)
+        #    glDisable(GL_DEPTH_TEST)
+
 
         glEnable(GL_ALPHA_TEST)
         glAlphaFunc(GL_GEQUAL, 0.5)
@@ -636,7 +663,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 glVertex3f(p.x, -p.z, p.y + 5)
 
             glEnd()"""
-        glClear(GL_DEPTH_BUFFER_BIT)
+
         self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D)
         glDisable(GL_DEPTH_TEST)
         if self.selectionbox_start is not None and self.selectionbox_end is not None:
@@ -653,8 +680,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
             glEnd()
 
-        if self.selectionbox_projected_origin is not None and self.selectionbox_projected_coords:
-            #print("drawing box")
+        if self.selectionbox_projected_origin is not None and self.selectionbox_projected_coords is not None:
+            print("drawing box")
             origin = self.selectionbox_projected_origin
             point2, point3, point4 = self.selectionbox_projected_coords
             glColor4f(1.0, 0.0, 0.0, 1.0)
@@ -671,6 +698,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         glEnable(GL_DEPTH_TEST)
         glFinish()
+        now = default_timer() - start
+        print("Frame time:", now, 1/now, "fps")
 
     @catch_exception
     def mousePressEvent(self, event):

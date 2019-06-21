@@ -3,13 +3,15 @@ from OpenGL.GL import *
 from lib.model_rendering import Model
 from lib.vectors import Vector3, Plane
 from widgets.editor_widgets import catch_exception
+
 id_to_meshname = {
     0x1: "gizmo_x",
     0x2: "gizmo_y",
     0x3: "gizmo_z",
     0x4: "rotation_x",
     0x5: "rotation_y",
-    0x6: "rotation_z"
+    0x6: "rotation_z",
+    0x7: "middle"
 }
 
 AXIS_X = 0
@@ -27,7 +29,7 @@ class Gizmo(Model):
         super().__init__()
 
         self.position = Vector3(0.0, 0.0, 0.0)
-        self.hidden = False#True
+        self.hidden = True
 
         self.callbacks = {}
 
@@ -85,6 +87,7 @@ class Gizmo(Model):
             if is3d: named_meshes["rotation_x"].render_colorid(0x4)
             named_meshes["rotation_y"].render_colorid(0x5)
             if is3d: named_meshes["rotation_z"].render_colorid(0x6)
+            if not is3d: named_meshes["middle"].render_colorid(0x7)
             glPopMatrix()
 
     def register_callback(self, gizmopart, func):
@@ -131,7 +134,7 @@ class Gizmo(Model):
             self.named_meshes["gizmo_z"].render()
             if is3d: self.named_meshes["rotation_z"].render()
             glColor4f(*MIDDLE)
-            self.named_meshes["middle"].render()
+            if not is3d: self.named_meshes["middle"].render()
             """for mesh in self.mesh_list:
                 if "_x" in mesh.name:
                     glColor4f(1.0, 0.0, 0.0, 1.0)
@@ -159,10 +162,11 @@ class Gizmo(Model):
         elif self.render_axis == AXIS_Z:
             glColor4f(*Z_COLOR)
             self._draw_line(Vector3(0, -99999, 0), Vector3(0, 99999, 0))
-
-
+        glClear(GL_DEPTH_BUFFER_BIT)
         glScalef(scale, scale, scale)
         if not self.hidden:
             self.render(is3d)
+
+
         glPopMatrix()
 

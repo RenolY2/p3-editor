@@ -44,7 +44,11 @@ def decompress(f, out):
     maxsize = f.tell()
     f.seek(0)
     
-    
+    #data = f.read()
+    #assert len(data) == maxsize
+    #f.seek(0)
+
+
     header = f.read(4)
     if header != b"Yaz0":
         raise RuntimeError("File is not Yaz0-compressed! Header: {0}".format(header))
@@ -81,12 +85,11 @@ def decompress(f, out):
                 data = file_read(2)
                 infobyte = data[0] << 8 | data[1]
                 
-                
-                
+
                 bytecount = infobyte >> 12 
                 
                 if bytecount == 0:
-                    if file_tell() >= maxsize-1:
+                    if file_tell() > maxsize-1:
                         eof = True
                         break
                     bytecount = file_read(1)[0] + 0x12
@@ -123,7 +126,8 @@ def decompress(f, out):
                         j = (j+1) % copy_length
                 
     if out.tell() < decompressed_size:
-        print("this isn't right")
+        #print("this isn't right")
+        raise RuntimeError("Didn't decompress correctly, notify the developer!")
     if out.tell() > decompressed_size:
         print(  "Warning: output is longer than decompressed size for some reason: "
                 "{}/decompressed: {}".format(out.tell(), decompressed_size))

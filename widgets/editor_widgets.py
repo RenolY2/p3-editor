@@ -1,9 +1,10 @@
 import traceback
 from io import StringIO
 import os
+import sys
 
 from PyQt5.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QFont, QFontMetrics, QPolygon, QImage, QPixmap, QKeySequence
-from PyQt5.QtWidgets import (QWidget, QListWidget, QListWidgetItem, QDialog, QMenu, QLineEdit,
+from PyQt5.QtWidgets import (QWidget, QListWidget, QListWidgetItem, QDialog, QMenu, QLineEdit, QFileDialog,
                             QMdiSubWindow, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QTextEdit, QAction, QShortcut)
 import PyQt5.QtWidgets as QtWidgets
 import PyQt5.QtCore as QtCore
@@ -84,6 +85,11 @@ class PikObjectEditor(QMdiSubWindow):
         self.button_savetext.setMaximumWidth(400)
         self.textbox_xml.setLineWrapMode(QTextEdit.NoWrap)
         self.textbox_xml.setContextMenuPolicy(Qt.CustomContextMenu)
+
+        self.button_writetemplate = QPushButton(self.centralwidget)
+        self.button_writetemplate.setText("Write Template")
+        self.button_writetemplate.setMaximumWidth(400)
+        self.button_writetemplate.pressed.connect(self.save_template)
         #self.textbox_xml.customContextMenuRequested.connect(self.my_context_menu)
 
         metrics = QFontMetrics(font)
@@ -91,11 +97,28 @@ class PikObjectEditor(QMdiSubWindow):
         self.textbox_xml.setFont(font)
 
         self.verticalLayout.addWidget(self.textbox_xml)
-        self.verticalLayout.addWidget(self.button_savetext)
+        hozlayout = QHBoxLayout()
+        hozlayout.addWidget(self.button_savetext)
+        hozlayout.addWidget(self.button_writetemplate)
+        self.verticalLayout.addLayout(hozlayout)
+        #self.verticalLayout.addWidget(self.button_savetext)
         self.setWindowTitle(self.window_name)
 
         QtWidgets.QShortcut(Qt.CTRL + Qt.Key_S, self).activated.connect(self.emit_save_object)
         self.button_savetext.setToolTip("Hotkey: Ctrl+S")
+
+    def save_template(self):
+        content = self.textbox_xml.toPlainText()
+        #dir_path = os.path.dirname(os.path.realpath(__file__))
+        #print(dir_path)
+        filepath, choosentype = QFileDialog.getSaveFileName(
+            self, "Save File",
+            os.path.join(os.getcwd(), "object_templates"),
+            "Text file (*.txt);;All files (*)")
+
+        if filepath:
+            with open(filepath, "w") as f:
+                f.write(content)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent):
         if event.key() == Qt.CTRL + Qt.Key_W:

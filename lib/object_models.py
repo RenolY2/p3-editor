@@ -1,6 +1,6 @@
-
+import os
 from OpenGL.GL import *
-from .model_rendering import GenericObject, Model
+from .model_rendering import GenericObject, Model, TexturedModel
 
 
 class ObjectModels(object):
@@ -12,6 +12,16 @@ class ObjectModels(object):
 
         with open("resources/unitcylinder.obj", "r") as f:
             self.cylinder = Model.from_obj(f, rotate=True)
+
+    def init_gl(self):
+        for dirpath, dirs, files in os.walk("resources/objectmodels"):
+            for file in files:
+                if file.endswith(".obj"):
+                    filename = os.path.basename(file)
+                    objectname = filename.rsplit(".", 1)[0]
+                    self.models[objectname] = TexturedModel.from_obj_path(os.path.join(dirpath, file), rotate=True)
+
+        print(self.models, "hmmm")
 
     def draw_sphere(self, position, scale):
         glPushMatrix()
@@ -59,8 +69,9 @@ class ObjectModels(object):
         glRotate(pikminobject.rotation.z, 0, 1, 0)
 
         if pikminobject.name in self.models:
-            self.models[pikminobject.name].render()
+            self.models[pikminobject.name].render(selected=selected)
         else:
+            glDisable(GL_TEXTURE_2D)
             self.generic.render(selected=selected)
 
         glPopMatrix()

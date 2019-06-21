@@ -108,6 +108,9 @@ def cross_product(v1, v2):
     return cross_x, cross_y, cross_z
 
 
+MAX_X = 20000
+MAX_Z = 20000
+
 class Collision(object):
     def __init__(self, verts, faces):
         self.verts = verts
@@ -129,10 +132,10 @@ class Collision(object):
         box_size_x = cell_size
         box_size_z = cell_size
 
-        smallest_x =-6000#max(-6000.0, smallest_x)
-        smallest_z = -6000#max(-6000.0, smallest_z)
-        biggest_x = 6000#min(6000.0, biggest_x)
-        biggest_z = 6000#min(6000.0, biggest_z)
+        smallest_x =-MAX_X#max(-6000.0, smallest_x)
+        smallest_z = -MAX_Z#max(-6000.0, smallest_z)
+        biggest_x = MAX_X#min(6000.0, biggest_x)
+        biggest_z = MAX_Z#min(6000.0, biggest_z)
         print("dimensions are changed to", smallest_x, smallest_z, biggest_x, biggest_z)
         start_x = math.floor(smallest_x / box_size_x) * box_size_x
         start_z = math.floor(smallest_z / box_size_z) * box_size_z
@@ -150,10 +153,9 @@ class Collision(object):
         print(grid_size_x, grid_size_z)
 
 
-
     def collide_ray_downwards(self, x, z, y=99999):
-        grid_x = int((x+6000) // 100)
-        grid_z = int((z+6000) // 100)
+        grid_x = int((x+MAX_X) // 100)
+        grid_z = int((z+MAX_Z) // 100)
 
         if grid_x not in self.grid or grid_z not in self.grid[grid_x]:
             return None

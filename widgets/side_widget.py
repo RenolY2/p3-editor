@@ -27,24 +27,24 @@ class PikminSideWidget(QWidget):
         self.button_add_object = QPushButton(parent)
         self.button_remove_object = QPushButton(parent)
         self.button_ground_object = QPushButton(parent)
-        self.button_move_object = QPushButton(parent)
+        #self.button_move_object = QPushButton(parent)
         self.button_edit_object = QPushButton(parent)
 
         self.button_add_object.setText("Add Object")
         self.button_remove_object.setText("Remove Object(s)")
         self.button_ground_object.setText("Ground Object(s)")
-        self.button_move_object.setText("Move Object(s)")
+        #self.button_move_object.setText("Move Object(s)")
         self.button_edit_object.setText("Edit Object")
 
         self.button_add_object.setToolTip("Hotkey: Ctrl+A")
         self.button_remove_object.setToolTip("Hotkey: Delete")
         self.button_ground_object.setToolTip("Hotkey: G")
-        self.button_move_object.setToolTip("Hotkey: M\nWhen enabled, hold R to rotate when one object is selected.")
+        #self.button_move_object.setToolTip("Hotkey: M\nWhen enabled, hold R to rotate when one object is selected.")
         self.button_edit_object.setToolTip("Hotkey: Ctrl+E")
 
 
         self.button_add_object.setCheckable(True)
-        self.button_move_object.setCheckable(True)
+        #self.button_move_object.setCheckable(True)
 
         self.lineedit_coordinatex = QLineEdit(parent)
         self.lineedit_coordinatey = QLineEdit(parent)
@@ -56,7 +56,7 @@ class PikminSideWidget(QWidget):
         self.verticalLayout.addWidget(self.button_add_object)
         self.verticalLayout.addWidget(self.button_remove_object)
         self.verticalLayout.addWidget(self.button_ground_object)
-        self.verticalLayout.addWidget(self.button_move_object)
+        #self.verticalLayout.addWidget(self.button_move_object)
         self.verticalLayout.addWidget(self.button_edit_object)
         self.verticalLayout.addStretch(20)
 
@@ -163,6 +163,7 @@ class PikminSideWidget(QWidget):
             self.lineedit_rotationz.setText(str(rotation.z))
 
         self.objectlist = []
+        self.comment_label.setText("")
 
     def set_objectlist(self, objs):
         self.objectlist = []
@@ -174,12 +175,17 @@ class PikminSideWidget(QWidget):
             self.objectlist.append(obj)
 
         objectnames.sort()
-        text = "Selected objects:\n" + (", ".join(objectnames))
-        diff = len(objs) - len(objectnames)
-        if diff == 1:
-            text += "\nAnd {0} more object".format(diff)
-        elif diff > 1:
-            text += "\nAnd {0} more objects".format(diff)
+        if len(objs) > 0:
+            text = "Selected objects:\n" + (", ".join(objectnames))
+            diff = len(objs) - len(objectnames)
+            if diff == 1:
+                text += "\nAnd {0} more object".format(diff)
+            elif diff > 1:
+                text += "\nAnd {0} more objects".format(diff)
+
+        else:
+            text = ""
+
         self.comment_label.setText(text)
 
 
