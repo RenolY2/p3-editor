@@ -265,8 +265,6 @@ class TexturedModel(object):
 
     @classmethod
     def from_obj_path(cls, objfilepath, scale=1.0, rotate=False):
-
-
         model = cls()
         vertices = []
         texcoords = []
@@ -306,7 +304,7 @@ class TexturedModel(object):
                                 continue
                             if mtlargs[0] == "newmtl":
                                 if lastmat is not None:
-                                    if not os.path.isabs(lasttex):
+                                    if lasttex is not None and not os.path.isabs(lasttex):
                                         lasttex = os.path.join(objpath, lasttex)
                                     materials[lastmat] = Material(diffuse=lastdiffuse, texturepath=lasttex)
                                     lastdiffuse = None
@@ -318,6 +316,8 @@ class TexturedModel(object):
                                 lastdiffuse = (r,g,b)
                             elif mtlargs[0] == "map_Kd":
                                 lasttex = " ".join(mtlargs[1:])
+                                if lasttex.strip() == "":
+                                    lasttex = None
 
                         if lastmat is not None:
                             materials[lastmat] = Material(diffuse=lastdiffuse, texturepath=lasttex)
@@ -368,7 +368,7 @@ class TexturedModel(object):
 
                     elif len(args) == 4:
                         v1, v2, v3 = map(read_vertex, args[1:4])
-                        faces.append(((v1[0]-1, v1[1]), (v3[0]-1, v3[1]), (v2[0]-1, v2[1])))
+                        faces.append(((v1[0] - 1, v1[1]), (v3[0] - 1, v3[1]), (v2[0] - 1, v2[1])))
 
             if len(default_mesh.triangles) > 0:
                 model.mesh_list.append(default_mesh)
@@ -473,6 +473,225 @@ class GenericObject(Model):
         self.mesh_list[1].render()
         glPopMatrix()
 
+
+class GenericComplexObject(GenericObject):
+    def __init__(self, modelpath, height, tip, eyes, body, rest):
+        self.scale = 10
+        with open(modelpath, "r") as f:
+            model = Model.from_obj(f, scale=self.scale, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+        self._tip = tip
+        self._eyes = eyes
+        self._body = body
+        self._height = height
+        self._rest = rest
+
+    def render(self, selected=False):
+        glEnable(GL_CULL_FACE)
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+        glCullFace(GL_FRONT)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, self._height * self.scale)
+        if selected:
+            glScalef(1.5, 1.5, 1.5)
+        else:
+            glScalef(1.2, 1.2, 1.2)
+
+        self.mesh_list[self._body].render()
+        glPopMatrix()
+        glCullFace(GL_BACK)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, self._height*self.scale)
+        glColor4f(1.0, 1.0, 1.0, 1.0)
+        self.mesh_list[self._body].render()
+        glColor4ub(0x09, 0x93, 0x00, 0xFF)
+        self.mesh_list[self._tip].render() # tip
+        glColor4ub(0x00, 0x00, 0x00, 0xFF)
+        self.mesh_list[self._eyes].render() # eyes
+
+        glPopMatrix()
+
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+
+        self.mesh_list[self._rest].render()
+        glDisable(GL_CULL_FACE)
+
+    def render_coloredid(self, id):
+        glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, self._height * self.scale)
+
+        self.mesh_list[self._body].render()
+        glPopMatrix()
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, self._height*self.scale)
+        self.mesh_list[self._body].render()
+        self.mesh_list[self._tip].render() # tip
+        self.mesh_list[self._eyes].render() # eyes
+
+        glPopMatrix()
+        self.mesh_list[self._rest].render()
+
+
+class GenericFlyer(GenericObject):
+    def __init__(self):
+        with open("resources/generic_object_flyer.obj", "r") as f:
+            model = Model.from_obj(f, scale=10, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+
+class GenericCrystallWall(GenericObject):
+    def __init__(self):
+        with open("resources/generic_object_crystalwall.obj", "r") as f:
+            model = Model.from_obj(f, scale=10, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+
+class GenericLongLegs(GenericComplexObject):
+    def __init__(self):
+        super().__init__("resources/generic_object_longlegs2.obj",
+                         height=5.0, tip=3, body=2, eyes=1, rest=0)
+
+class GenericChappy(GenericComplexObject):
+    def __init__(self):
+        super().__init__("resources/generic_chappy.obj",
+                         height=2.56745, tip=0, body=2, eyes=1, rest=3)
+
+
+
+class __GenericChappy(GenericObject):
+    def __init__(self):
+        self.scale = 10
+        with open("resources/generic_chappy.obj", "r") as f:
+            model = Model.from_obj(f, scale=self.scale, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+    def render(self, selected=False):
+        glEnable(GL_CULL_FACE)
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+
+        mainbodyheight = 2.56745
+        glCullFace(GL_FRONT)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, mainbodyheight * self.scale)
+        if selected:
+            glScalef(1.5, 1.5, 1.5)
+        else:
+            glScalef(1.2, 1.2, 1.2)
+
+        self.mesh_list[1].render()
+        glPopMatrix()
+        glCullFace(GL_BACK)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, 2.56745*self.scale)
+        glColor4f(1.0, 1.0, 1.0, 1.0)
+        self.mesh_list[1].render()
+
+
+        glColor4ub(0x09, 0x93, 0x00, 0xFF)
+        self.mesh_list[2].render() # tip
+        glPopMatrix()
+        glColor4ub(0x00, 0x00, 0x00, 0xFF)
+        self.mesh_list[3].render() # eyes
+
+
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+        self.mesh_list[0].render()  # leg
+        glDisable(GL_CULL_FACE)
+
+    def render_coloredid(self, id):
+        glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+        glPushMatrix()
+        glScalef(1.2, 1.2, 1.2)
+        glTranslatef(0.0, 0.0, 2.56745 * self.scale)
+        self.mesh_list[1].render()
+        glPopMatrix()
+
+
+class GenericSnakecrow(GenericComplexObject):
+    def __init__(self):
+        super().__init__("resources/generic_snakecrow.obj",
+                         height=6.63505, tip=1, body=0, eyes=2, rest=3)
+
+
+class __GenericSnakecrow(GenericObject):
+    def __init__(self):
+        self.scale = 10
+        with open("resources/generic_snakecrow.obj", "r") as f:
+            model = Model.from_obj(f, scale=self.scale, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+    def render(self, selected=False):
+        glEnable(GL_CULL_FACE)
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+
+        mainbodyheight = 6.63505
+        glCullFace(GL_FRONT)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, mainbodyheight * self.scale)
+        if selected:
+            glScalef(1.5, 1.5, 1.5)
+        else:
+            glScalef(1.2, 1.2, 1.2)
+
+
+        self.mesh_list[1].render()
+        glPopMatrix()
+        glCullFace(GL_BACK)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, mainbodyheight*self.scale)
+        glColor4f(1.0, 1.0, 1.0, 1.0)
+        self.mesh_list[1].render()
+        glPopMatrix()
+
+        glColor4ub(0x09, 0x93, 0x00, 0xFF)
+        self.mesh_list[2].render() # tip
+
+        glColor4ub(0x00, 0x00, 0x00, 0xFF)
+        self.mesh_list[3].render() # eyes
+
+
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+        self.mesh_list[0].render()  # leg
+        glDisable(GL_CULL_FACE)
+
+    def render_coloredid(self, id):
+        glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+        glPushMatrix()
+        glScalef(1.2, 1.2, 1.2)
+        glTranslatef(0.0, 0.0, 2.56745 * self.scale)
+        self.mesh_list[1].render()
+        glPopMatrix()
+
+
+class GenericSwimmer(GenericComplexObject):
+    def __init__(self):
+        super().__init__("resources/generic_swimmer.obj",
+                         height=0.0, tip=0, body=3, eyes=1, rest=2)
 
 class TexturedPlane(object):
     def __init__(self, planewidth, planeheight, qimage):

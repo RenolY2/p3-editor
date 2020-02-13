@@ -31,6 +31,8 @@ class GeneratorWriter(object):
 
         self.indent = 0
 
+
+
     def write_token(self, token, comment = None):
         self.f.write(self.indent*"\t")
         self.f.write(token)
@@ -98,6 +100,8 @@ class GeneratorReader(object):
         self.f = file
         self.current_line = 0
 
+        self._didremovecomments = False
+
     def read_token(self):
         self.f.tell()  # <--- EXTREMELY IMPORTANT, do not remove or bugs will appear on parsing
         line = self.f.readline()
@@ -111,10 +115,12 @@ class GeneratorReader(object):
 
         if comment != -1:
             line = line[:comment]
+            self._didremovecomments = True
 
         comment2 = line.find("//")
         if comment2 != -1:
             line = line[:comment2]
+            self._didremovecomments = True
 
         if line.strip() == "":
             line = self.read_token()  # Try reading the next token
@@ -398,7 +404,13 @@ class GeneratorObject(object):
                 self.unknown_params[param_name] = unkdata
 
             next = reader.read_token()
-            assert next in ("{", "}", "")
+            syntax_assert(next != "",
+                          "Reached end of file while parsing parameters",
+                          reader.current_line)
+            syntax_assert(next in ("{", "}"),
+                          "Malformed file, expected {{ or }} but got {0}".format(next),
+                          reader.current_line)
+            #assert next in ("{", "}", "")
 
     def _read_spline(self, reader: GeneratorReader):
         splinetext = reader.read_string()
@@ -440,8 +452,18 @@ class GeneratorFile(object):
 
     @classmethod
     def from_file(cls, f):
+        """data = f.read()
+        if "#" not in data:
+            #print(data)
+            #assert "#" in f.read()
+            dontsave = True
+        else:
+            dontsave = False
+        f.seek(0)"""
         genfile = cls()
         reader = GeneratorReader(f)
+        written = {}
+
         try:
             start = reader.read_token()
             if start != "{":
@@ -452,7 +474,10 @@ class GeneratorFile(object):
                 raise RuntimeError("Malformed file, expected generator object or '}'")
 
             while next != "}":
+                start = reader.f.tell()
+
                 generator = GeneratorObject.from_generator_file(reader)
+                end = reader.f.tell()
                 #print(generator.name)
                 genfile.generators.append(generator)
                 next = reader.peek_token()
@@ -460,9 +485,27 @@ class GeneratorFile(object):
                 #assert reader.peek_token() == next
                 #print(reader.peek_token())
                 #print(reader.peek_token())
+
+                #if generator.name not in written and not dontsave:
+                #    written[generator.name] = (start, end)
+
                 if next == "":
                     raise RuntimeError("Malformed file, expected generator object or '}'")
 
+            """curr = f.tell()
+            for obj, pos in written.items():
+                start, end = pos
+                reader.f.seek(start)
+                assert reader.f.tell() == start
+                adata = reader.f.read(end - start)
+                reader.f.seek(end)
+                assert reader.f.tell() == end
+
+                with open("examples/"+obj+".txt", "w", encoding="utf-8") as g:
+                    g.write(adata)
+
+                # reader.f.seek(end)
+            f.seek(curr)"""
             return genfile
 
         except Exception as e:

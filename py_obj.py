@@ -7,7 +7,7 @@ def read_vertex(v_data):
     else:
         vnormal = None
     v = int(split[0])
-    return v, vnormal
+    return v#, vnormal
 
 def read_obj(objfile):
 
@@ -35,7 +35,7 @@ def read_obj(objfile):
             if len(args) != 4:
                 raise RuntimeError("Model needs to be triangulated! Only faces with 3 vertices are supported.")
             v1, v2, v3 = map(read_vertex, args[1:4])
-            faces.append((v1,v2,v3))
+            faces.append((v1-1,v2-1,v3-1))
         elif cmd == "vn":
             nx,ny,nz = map(float, args[1:4])
             normals.append((nx,ny,nz))
@@ -45,13 +45,16 @@ def read_obj(objfile):
 
     return vertices, faces, normals
 
+
 def read_uint32(f):
     val = f.read(0x4)
     return unpack(">I", val)[0]
 
+
 def read_float_tripple(f):
     val = f.read(0xC)
     return unpack(">fff", val)
+
 
 def read_uint16(f):
     return unpack(">H", f.read(2))[0]
@@ -60,10 +63,14 @@ def read_uint16(f):
 class BJMP(object):
     def __init__(self, f):
         magic = read_uint32(f)
-        if magic != 0x013304E6:
-            raise RuntimeError("Expected magic {:x}, got unsupported magic {:x}.".format(0x013304E6, magic))
+        if magic == 0x013304E6:
+            unknown = f.read(4*12)  # AABB or something?
+        elif magic == 0x01330237:
+            pass # this variant has no AABB at all
+        else:
+            raise RuntimeError("Expected magic {:x} or {:x}, got unsupported magic {:x}.".format(
+                0x013304E6, 0x01330237, magic))
 
-        unknown = f.read(4*12)  # AABB or something?
         vertex_count = read_uint16(f)
 
         self.vertices = []
@@ -77,6 +84,7 @@ class BJMP(object):
             self.triangles.append((v1, v2, v3))
 
             f.read(0x78-6)
+
 
 class PikminCollision(object):
     def __init__(self, f):

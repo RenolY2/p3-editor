@@ -71,7 +71,7 @@ class Gizmo(Model):
         self.position.x = avgx / len(objects)
         self.position.y = avgy / len(objects)
         self.position.z = avgz / len(objects)
-        print("New position is", self.position, len(objects))
+        #print("New position is", self.position, len(objects))
 
     def render_collision_check(self, scale, is3d=True):
         if not self.hidden:
@@ -99,7 +99,7 @@ class Gizmo(Model):
     def run_callback(self, hit_id):
         if hit_id not in id_to_meshname: return
         meshname = id_to_meshname[hit_id]
-        print("was hit", meshname)
+        #print("was hit", meshname)
         #assert meshname in self.was_hit
         #assert all(x is False for x in self.was_hit.values())
         self.was_hit[meshname] = True

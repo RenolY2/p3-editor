@@ -194,10 +194,12 @@ class Gizmo2DMoveZ(Gizmo2DMoveX):
 class Gizmo2DRotateY(Gizmo2DMoveX):
     def just_clicked(self, editor, buttons, event):
         super().just_clicked(editor, buttons, event)
+        self.was_hidden = False
 
     def move(self, editor, buttons, event):
         if editor.gizmo.was_hit["rotation_y"]:
             editor.gizmo.hidden = True
+            self.was_hidden = True
             #editor.gizmo.set_render_axis(AXIS_Z)
 
             x, y = editor.mouse_coord_to_world_coord(self.first_click.x, self.first_click.y)
@@ -214,7 +216,8 @@ class Gizmo2DRotateY(Gizmo2DMoveX):
 
     def just_released(self, editor, buttons, event):
         super().just_released(editor, buttons, event)
-        editor.gizmo.hidden = False
+        if self.was_hidden:
+            editor.gizmo.hidden = False
         editor.gizmo.reset_axis()
         #editor.gizmo.move_to_average(editor.selected)
 
@@ -259,7 +262,7 @@ ufac = 10
 
 class Select3D(ClickDragAction):
     def condition(self, editor, buttons, event):
-        if not (editor.mousemode == MOUSE_MODE_NONE and not buttons.is_held(event, "Right") and not editor.gizmo.was_hit_at_all):
+        if False and not (editor.mousemode == MOUSE_MODE_NONE and not buttons.is_held(event, "Right") and not editor.gizmo.was_hit_at_all):
             print("Wanted to do a select but", editor.mousemode == MOUSE_MODE_NONE,
                   not buttons.is_held(event, "Right"),
                   not editor.gizmo.was_hit_at_all
@@ -271,7 +274,7 @@ class Select3D(ClickDragAction):
         editor.selectionqueue.queue_selection(
             event.x(), event.y(), 1, 1,
             editor.shift_is_pressed)
-        print("WE HAVE SENT A REQUEST")
+        #print("WE HAVE SENT A REQUEST")
         editor.do_redraw(force=True)
 
 
@@ -319,6 +322,7 @@ class AddObject3D(ClickAction):
         return editor.mousemode == MOUSE_MODE_ADDWP
 
     def just_clicked(self, editor, buttons, event):
+        #print("added object in 3d")
         ray = editor.create_ray_from_mouseclick(event.x(), event.y())
         place_at = None
 
@@ -333,7 +337,9 @@ class AddObject3D(ClickAction):
             if collision is not False:
                 place_at, _ = collision
 
+
         if place_at is not None:
+            #print("placed at", place_at)
             editor.create_waypoint_3d.emit(place_at.x, place_at.z, -place_at.y)
         #else:
         #    print("nothing collided, aw")
@@ -541,7 +547,7 @@ class UserControl(object):
 
         editor.selectionqueue.clear()
         editor.gizmo.reset_hit_status()
-        print("Gizmo hit status was reset!!!!", editor.gizmo.was_hit_at_all)
+        #print("Gizmo hit status was reset!!!!", editor.gizmo.was_hit_at_all)
         editor.do_redraw()
 
     def handle_move(self, event):

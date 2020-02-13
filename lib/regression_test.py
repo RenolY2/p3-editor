@@ -22,7 +22,7 @@ for path, dirs, files in os.walk("D:\\Wii games\\WiiU\\DATA\\EMULATORS\\Cemu\\GA
                     TextIOWrapper(BytesIO(data.getvalue()), encoding="shift-jis-2004", errors="replace")
                 )
 
-                tmp = StringIO()
+                """tmp = StringIO()
 
                 writer = GeneratorWriter(tmp)
                 pikmin_gen_file.write(writer)
@@ -33,5 +33,5 @@ for path, dirs, files in os.walk("D:\\Wii games\\WiiU\\DATA\\EMULATORS\\Cemu\\GA
 
                 del tmp
                 del writer
-                del pikmin_gen_file
+                del pikmin_gen_file"""
 

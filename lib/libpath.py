@@ -7,6 +7,7 @@ def read_link(reader: GeneratorReader):
     vals = token.split(" ")
     return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
 
+
 class Waypoint(object):
     def __init__(self, index, id, position, radius):
         self.index = index

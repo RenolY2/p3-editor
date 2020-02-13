@@ -117,7 +117,7 @@ class PikObjectEditor(QMdiSubWindow):
             "Text file (*.txt);;All files (*)")
 
         if filepath:
-            with open(filepath, "w") as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent):
@@ -264,24 +264,63 @@ class AddPikObjectWindow(PikObjectEditor):
             return None
 
     def setup_dropdown_menu(self):
+        self.category_menu = QtWidgets.QComboBox(self)
+        self.category_menu.addItem("-- select object category --")
+        self.category_menu.addItem("[None]")
+
         self.template_menu = QtWidgets.QComboBox(self)
         self.template_menu.addItem("-- select object template --")
         self.template_menu.addItem("[None]")
 
-        for filename in os.listdir("./object_templates"):
-            if filename.endswith(".txt"):
+        self.verticalLayout.addWidget(self.category_menu)
+        self.verticalLayout.addWidget(self.template_menu)
+
+        for dirpath, dirs, files in os.walk("./object_templates"):
+            for dirname in dirs:
+                self.category_menu.addItem(dirname)
+
+            for filename in files:
                 self.template_menu.addItem(filename)
 
+            break
+
+        self.category_menu.currentIndexChanged.connect(self.change_category)
         self.template_menu.currentIndexChanged.connect(self.read_template_file_into_window)
+
+    def change_category(self, index):
+        self.template_menu.clear()
+        self.template_menu.addItem("-- select object template --")
+        self.template_menu.addItem("[None]")
+
+        if index == 1:
+
+            for dirpath, dirs, files in os.walk("./object_templates"):
+                for filename in files:
+                    self.template_menu.addItem(filename)
+
+                break
+        elif index > 1:
+            dirname = self.category_menu.currentText()
+            for dirpath, dirs, files in os.walk(os.path.join("object_templates", dirname)):
+                for filename in files:
+                    self.template_menu.addItem(filename)
+
+                break
+
 
     @catch_exception_with_dialog
     def read_template_file_into_window(self, index):
         if index == 1:
             self.textbox_xml.setText("")
         elif index > 1:
+            if self.category_menu.currentIndex() <= 1:
+                dirname = ""
+            else:
+                dirname = self.category_menu.currentText()
+
             filename = self.template_menu.currentText()
 
-            with open(os.path.join("./object_templates", filename), "r", encoding="utf-8") as f:
+            with open(os.path.join("./object_templates", dirname, filename), "r", encoding="utf-8") as f:
                 self.textbox_xml.setText(f.read())
 
 

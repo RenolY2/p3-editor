@@ -104,6 +104,7 @@ class GenEditor(QMainWindow):
         self._user_made_change = False
 
         self.addobjectwindow_last_selected = None
+        self.addobjectwindow_last_selected_category = None
 
     def set_base_window_title(self, name):
         self._window_title = name
@@ -581,7 +582,9 @@ class GenEditor(QMainWindow):
             self.add_object_window.button_savetext.pressed.connect(self.button_add_item_window_save)
             self.add_object_window.closing.connect(self.button_add_item_window_close)
             if self.addobjectwindow_last_selected is not None:
+                self.add_object_window.category_menu.setCurrentIndex(self.addobjectwindow_last_selected_category)
                 self.add_object_window.template_menu.setCurrentIndex(self.addobjectwindow_last_selected)
+
             self.add_object_window.show()
 
         elif self.pikmin_gen_view.mousemode == pikwidgets.MOUSE_MODE_ADDWP:
@@ -594,7 +597,9 @@ class GenEditor(QMainWindow):
             self.add_object_window.button_savetext.pressed.connect(self.button_add_item_window_save)
             self.add_object_window.closing.connect(self.button_add_item_window_close)
             if self.addobjectwindow_last_selected is not None:
+                self.add_object_window.category_menu.setCurrentIndex(self.addobjectwindow_last_selected_category)
                 self.add_object_window.template_menu.setCurrentIndex(self.addobjectwindow_last_selected)
+
 
             self.add_object_window.show()
 
@@ -604,6 +609,7 @@ class GenEditor(QMainWindow):
             self.object_to_be_added = self.add_object_window.get_content()
 
             if self.object_to_be_added is not None:
+                self.addobjectwindow_last_selected_category = self.add_object_window.category_menu.currentIndex()
                 self.addobjectwindow_last_selected = self.add_object_window.template_menu.currentIndex()
                 self.pik_control.button_add_object.setChecked(True)
                 #self.pik_control.button_move_object.setChecked(False)
@@ -623,7 +629,6 @@ class GenEditor(QMainWindow):
     @catch_exception
     def action_add_object(self, x, z):
         newobj = self.object_to_be_added.copy()
-        print("WE DID SOMETHING")
         newobj.position.x = x
         newobj.position.z = z
 
@@ -644,10 +649,10 @@ class GenEditor(QMainWindow):
     def action_add_object_3d(self, x, y, z):
         newobj = self.object_to_be_added.copy()
 
-        newobj.position_x = newobj.x = round(x, 6)
-        newobj.position_y = newobj.y = round(y, 6)
-        newobj.position_z = newobj.z = round(z, 6)
-        newobj.offset_x = newobj.offset_y = newobj.offset_z = 0.0
+        newobj.position.x = round(x, 6)
+        newobj.position.y = round(y, 6)
+        newobj.position.z = round(z, 6)
+        #newobj.offset_x = newobj.offset_y = newobj.offset_z = 0.0
 
         self.pikmin_gen_file.generators.append(newobj)
         # self.pikmin_gen_view.update()
@@ -960,8 +965,9 @@ class GenEditor(QMainWindow):
 
                             self.set_has_unsaved_changes(True)
 
+                    @catch_exception
                     def action_close_edit_window():
-                        self.editing_windows[currentobj].destroy()
+                        #self.editing_windows[currentobj].destroy()
                         del self.editing_windows[currentobj]
 
                     self.editing_windows[currentobj].button_savetext.pressed.connect(action_editwindow_save_data)
