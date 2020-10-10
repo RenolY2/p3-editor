@@ -249,10 +249,13 @@ class GeneratorParameters(object):
 
 
 class GeneratorObject(object):
-    def __init__(self, name, version, generatorid=["", "", ""]):
+    def __init__(self, name, version, generatorid=["", "", ""], modes=[1, 1, 1], fid=0, fmt=0):
         self.name = name
         self.version = version
         self.generatorid = generatorid
+        self.modes = modes
+        self.fid = fid
+        self.fmt = fmt
 
         self.spline = []
         self.spline_float = None
@@ -288,7 +291,20 @@ class GeneratorObject(object):
         #print("NOW WE ARE DOING ", name)
         version = reader.read_string()
         generatorid = reader.read_string_tripple()
-        gen = cls(name, version, generatorid)
+        if int(version) >= 7:
+            print("version 7 or higher, getting mode booleans")
+            modes = [
+                reader.read_token(),
+                reader.read_token(),
+                reader.read_token()
+            ]
+            fid = reader.read_token()
+            fmt = reader.read_token()
+            gen = cls(name, version, generatorid, modes, fid, fmt)
+        else:
+            print("version lower than 7")
+            gen = cls(name, version, generatorid)
+
         gen.read_parameters(reader)
         gen._read_spline(reader)
 
@@ -298,6 +314,13 @@ class GeneratorObject(object):
         writer.write_string(self.name)
         writer.write_string(self.version)
         writer.write_string_tripple(*self.generatorid)
+        if int(self.version) >= 7:
+            writer.write_token(self.modes[0], "# Normal [0=false, 1=true]")
+            writer.write_token(self.modes[1], "# Hard [0=false, 1=true]")
+            writer.write_token(self.modes[2], "# Ultra-Spicy [0=false, 1=true]")
+            writer.write_token(self.fid, "# Face ID (Unknown)")
+            writer.write_token(self.fmt, "# Face Message Table (Unkown)")
+        
         self.write_parameters(writer)
         if len(self.spline) == 0:
             writer.write_string("no-spline")
