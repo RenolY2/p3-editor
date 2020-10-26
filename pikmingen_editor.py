@@ -251,7 +251,7 @@ class GenEditor(QMainWindow):
                 name = obj.name+" ({0})".format(namecount[obj.name])
                 objlist[name] = obj
 
-        choice, pos = FileSelect.open_file_list(self, sorted(objlist.keys()),
+        choice, pos = FileSelect.open_file_list(self, sorted(objlist.keys(), key=lambda x: x.lower()),
                                            "Select Object", self.last_obj_select_pos)
 
         if choice is not None:
