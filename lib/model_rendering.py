@@ -125,9 +125,6 @@ class TexturedMesh(object):
         glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
         glCallList(self._displist)
 
-
-
-
 class Material(object):
     def __init__(self, diffuse=None, texturepath=None):
         if texturepath is not None:
@@ -143,7 +140,7 @@ class Material(object):
                 fmt = "jpg"
             else:
                 raise RuntimeError("unknown tex format: {0}".format(texturepath))
-
+            
             qimage = QtGui.QImage(texturepath, "fmt")
 
             imgdata = bytes(qimage.bits().asarray(qimage.width() * qimage.height() * 4))
@@ -311,15 +308,17 @@ class TexturedModel(object):
                                     lasttex = None
 
                                 lastmat = " ".join(mtlargs[1:])
-                            elif mtlargs[0] == "Kd":
+                            elif mtlargs[0].lower() == "kd":
                                 r, g, b = map(float, mtlargs[1:4])
                                 lastdiffuse = (r,g,b)
-                            elif mtlargs[0] == "map_Kd":
+                            elif mtlargs[0].lower() == "map_kd":
                                 lasttex = " ".join(mtlargs[1:])
                                 if lasttex.strip() == "":
                                     lasttex = None
 
                         if lastmat is not None:
+                            if lasttex is not None and not os.path.isabs(lasttex):
+                                lasttex = os.path.join(objpath, lasttex)
                             materials[lastmat] = Material(diffuse=lastdiffuse, texturepath=lasttex)
                             lastdiffuse = None
                             lasttex = None
