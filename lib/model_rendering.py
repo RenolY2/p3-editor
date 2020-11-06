@@ -85,9 +85,6 @@ class TexturedMesh(object):
         glNewList(displist, GL_COMPILE)
         glBegin(GL_TRIANGLES)
 
-        if self.material.tex is not None:
-            glBindTexture(GL_TEXTURE_2D, self.material.tex)
-
         for triangle in self.triangles:
             assert len(triangle) == 3
             for vi, ti in triangle:
@@ -105,6 +102,7 @@ class TexturedMesh(object):
 
         if self.material.tex is not None:
             glEnable(GL_TEXTURE_2D)
+            glBindTexture(GL_TEXTURE_2D, self.material.tex)
         else:
             glDisable(GL_TEXTURE_2D)
 
@@ -140,7 +138,7 @@ class Material(object):
                 fmt = "jpg"
             else:
                 raise RuntimeError("unknown tex format: {0}".format(texturepath))
-            
+
             qimage = QtGui.QImage(texturepath, "fmt")
 
             imgdata = bytes(qimage.bits().asarray(qimage.width() * qimage.height() * 4))
