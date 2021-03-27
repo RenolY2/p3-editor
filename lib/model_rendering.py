@@ -123,6 +123,7 @@ class TexturedMesh(object):
         glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
         glCallList(self._displist)
 
+
 class Material(object):
     def __init__(self, diffuse=None, texturepath=None):
         if texturepath is not None:
