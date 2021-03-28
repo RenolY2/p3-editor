@@ -1,5 +1,8 @@
+from collections import OrderedDict
+
 from .libgen import GeneratorReader
 from .vectors import Vector3
+
 
 def read_link(reader: GeneratorReader):
     token = reader.read_token()
@@ -16,21 +19,31 @@ class Waypoint(object):
         self.id = id
         self.waypoint_type = None
 
-        self.incoming_links = []
-        self.outgoing_links = []
+        self.incoming_links = OrderedDict()
+        self.outgoing_links = OrderedDict()
 
-    def add_incoming(self, link, unkfloat, unkint, unkint2):
+    def remove_link(self, waypoint):
+        if waypoint in self.incoming_links:
+            del self.incoming_links[waypoint]
+        if waypoint in self.outgoing_links:
+            del self.outgoing_links[waypoint]
+
+    def add_incoming(self, waypoint, unkfloat, unkint, unkint2):
         if len(self.incoming_links) >= 8:
             raise RuntimeError("Too many incoming links, cannot add more")
+        if waypoint in self.incoming_links:
+            raise RuntimeError("Link already exists")
 
-        self.incoming_links.append((link, unkfloat, unkint, unkint2))
+        self.incoming_links[waypoint] = (unkfloat, unkint, unkint2)
 
-    def add_outgoing(self, link, unkfloat, unkint, unkint2):
+    def add_outgoing(self, waypoint, unkfloat, unkint, unkint2):
         if len(self.outgoing_links) >= 8:
             raise RuntimeError("Too many outgoing links, cannot add more")
-        self.outgoing_links.append((link, unkfloat, unkint, unkint2))
+        if waypoint in self.outgoing_links:
+            raise RuntimeError("Link already exists")
+        self.outgoing_links[waypoint] = (unkfloat, unkint, unkint2)
 
-    def get_incoming_info(self, index):
+    """def get_incoming_info(self, index):
         for val in self.incoming_links:
             if val[0] == index:
                 return val
@@ -40,7 +53,7 @@ class Waypoint(object):
         for val in self.outgoing_links:
             if val[0] == index:
                 return val
-        return None
+        return None"""
 
 
 class Paths(object):
@@ -48,17 +61,18 @@ class Paths(object):
         self.waypoints = []
 
         self.unique_paths = []
-        self.wide_paths = []
+        #self.wide_paths = []
 
-        self.path_info = {}
+        #self.path_info = {}
 
     def _regenerate_unique_paths(self):
         checked = {}
         paths = []
         for waypoint in self.waypoints:
             for link in waypoint.outgoing_links:
-                s = waypoint.index
-                t = link[0]
+                #print(link)
+                s = waypoint#waypoint.index
+                t = link#link.index
 
                 if (s,t) not in checked and (t,s) not in checked:
                     paths.append((s, t))
@@ -107,9 +121,6 @@ class Paths(object):
                 self.wide_paths.append((c1, c2, c3, c4))
 
 
-
-
-
     @classmethod
     def from_file(cls, f):
         paths = cls()
@@ -119,24 +130,30 @@ class Paths(object):
             raise RuntimeError("Unsupported Path Version: {0}".format(version))
 
         pointcount = reader.read_integer()
+        waypoints = [Waypoint(i, "", Vector3(0.0, 0.0, 0.0), 100) for i in range(pointcount)]
 
         for i in range(pointcount):
             assert i == reader.read_integer()  # index
-            position = reader.read_vector3f()
-            radius = reader.read_float()
-            id = reader.read_string()
 
-            waypoint = Waypoint(i, id, Vector3(*position), radius)
-
-            for i in range(8):
-                link = read_link(reader)
-                if link[0] != -1:
-                    waypoint.add_outgoing(*link)
+            waypoint = waypoints[i]
+            waypoint.position = Vector3(*reader.read_vector3f())
+            waypoint.radius = reader.read_float()
+            waypoint.id = reader.read_string()
+            #Waypoint(i, id, Vector3(*position), radius)
 
             for i in range(8):
                 link = read_link(reader)
-                if link[0] != -1:
-                    waypoint.add_incoming(*link)
+                wp, data = link[0], link[1:]
+
+                if wp != -1:
+                    waypoint.add_outgoing(waypoints[wp], *data)
+
+            for i in range(8):
+                link = read_link(reader)
+                wp, data = link[0], link[1:]
+
+                if wp != -1:
+                    waypoint.add_incoming(waypoints[wp], *data)
             waypoint.waypoint_type = reader.read_integer()
             paths.waypoints.append(waypoint)
 

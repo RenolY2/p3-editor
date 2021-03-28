@@ -645,21 +645,21 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         glDisable(GL_TEXTURE_2D)
         glColor4f(0.0, 1.0, 0.0, 1.0)
         rendered = {}
-        for p1i, p2i in self.paths.unique_paths:
-            p1 = self.paths.waypoints[p1i]
-            p2 = self.paths.waypoints[p2i]
+        for p1, p2 in self.paths.unique_paths:
+            #p1 = self.paths.waypoints[p1i]
+            #p2 = self.paths.waypoints[p2i]
 
             glBegin(GL_LINES)
             glVertex3f(p1.position.x, -p1.position.z, p1.position.y+5)
             glVertex3f(p2.position.x, -p2.position.z, p2.position.y+5)
             glEnd()
 
-            if p1i not in rendered:
+            if p1 not in rendered:
                 self.models.draw_sphere(p1.position, p1.radius/2)
-                rendered[p1i] = True
-            if p2i not in rendered:
+                rendered[p1] = True
+            if p2 not in rendered:
                 self.models.draw_sphere(p2.position, p2.radius/2)
-                rendered[p2i] = True
+                rendered[p2] = True
         glColor4f(0.0, 1.0, 1.0, 1.0)
         """for points in self.paths.wide_paths:
             glBegin(GL_LINE_LOOP)
@@ -667,8 +667,28 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 glVertex3f(p.x, -p.z, p.y + 5)
 
             glEnd()"""
+        glDisable(GL_ALPHA_TEST)
+        glDisable(GL_TEXTURE_2D)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glEnable(GL_BLEND)
+        glEnable(GL_DEPTH_TEST)
+
+        if self.pikmin_generators is not None:
+            selected = self.selected
+            objects = self.pikmin_generators.generators
+
+            for pikminobject in objects:
+                if pikminobject.name == "WaterBox":
+                    scale = float(pikminobject.unknown_params["mScale"][0])
+                    depth = float(pikminobject.unknown_params["mDepth"][0])
+                    self.models.draw_waterbox(pikminobject.position, pikminobject.rotation.y,
+                                              scale * 100, scale * 100, depth,
+                                              pikminobject in selected)
 
         self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D)
+
+
+
         glDisable(GL_DEPTH_TEST)
         if self.selectionbox_start is not None and self.selectionbox_end is not None:
             #print("drawing box")
