@@ -37,6 +37,9 @@ class ObjectModels(object):
         with open("resources/unitcylinder.obj", "r") as f:
             self.cylinder = Model.from_obj(f, rotate=True)
 
+        with open("resources/unitcube_solid.obj", "r") as f:
+            self.solid_cube = Model.from_obj(f, rotate=True)
+
     def init_gl(self):
         for dirpath, dirs, files in os.walk("resources/objectmodels"):
             for file in files:
@@ -79,6 +82,21 @@ class ObjectModels(object):
         glScalef(radius, radius, height)
 
         self.cylinder.render()
+        glPopMatrix()
+
+    def draw_waterbox(self, position, rotation, scalex, scaley, scalez, selected):
+        glPushMatrix()
+
+        glTranslatef(position.x, -position.z, position.y)
+        glRotate(rotation, 0, 0, 1)
+        glScalef(scalex, scaley, scalez)
+
+        if selected:
+            glColor4f(0.0, 0.0, 1.0, 0.2)
+        else:
+            glColor4f(0.0, 0.0, 0.5, 0.2)
+
+        self.solid_cube.render()
         glPopMatrix()
 
     def render_object(self, pikminobject, selected):
