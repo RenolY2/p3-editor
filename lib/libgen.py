@@ -31,8 +31,6 @@ class GeneratorWriter(object):
 
         self.indent = 0
 
-
-
     def write_token(self, token, comment = None):
         self.f.write(self.indent*"\t")
         self.f.write(token)
@@ -342,6 +340,11 @@ class GeneratorObject(object):
                     writer.close_bracket()
                 writer.close_bracket()
 
+    def _get_comments(self, param):
+        if param == "mSaveOption":
+            return ["flag", "birthday", "deadday", "interval", "expireday", "curr num", "expire progress"]
+        else:
+            return []
 
     def write_parameters(self, writer:GeneratorWriter):
         writer.open_bracket()
@@ -364,6 +367,8 @@ class GeneratorObject(object):
         writer.close_bracket()
 
         for param, values in self.unknown_params.items():
+            comments = self._get_comments(param)
+
             writer.open_bracket()
             writer.write_string(param)
 
@@ -371,7 +376,7 @@ class GeneratorObject(object):
                 writer.write_float(values)
             else:
                 level = 0
-                for val in values:
+                for i, val in enumerate(values):
                     if val == "{":
                         writer.open_bracket()
                         level += 1
@@ -379,7 +384,11 @@ class GeneratorObject(object):
                         writer.close_bracket()
                         level -= 1
                     else:
-                        writer.write_token(val)
+                        if i < len(comments):
+                            writer.write_token(val, "# "+comments[i])
+                        else:
+                            writer.write_token(val)
+
                 syntax_assert(level==0, "Bracket mismatch", writer.current_line)
             writer.close_bracket()
 
