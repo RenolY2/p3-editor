@@ -472,6 +472,43 @@ class GenericObject(Model):
         glPopMatrix()
 
 
+class GenericObjectSphere(Model):
+    def __init__(self):
+        with open("resources/generic_object_sphere.obj", "r") as f:
+            model = Model.from_obj(f, scale=10, rotate=True)
+        self.mesh_list = model.mesh_list
+        self.named_meshes = model.mesh_list
+
+    def render(self, color, selected=False):
+        glEnable(GL_CULL_FACE)
+        if selected:
+            glColor4f(255/255, 223/255, 39/255, 1.0)
+        else:
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+        glCullFace(GL_FRONT)
+        glPushMatrix()
+
+        if selected:
+            glScalef(1.5, 1.5, 1.5)
+        else:
+            glScalef(1.2, 1.2, 1.2)
+
+        self.mesh_list[0].render()
+        glPopMatrix()
+        glCullFace(GL_BACK)
+
+        glColor4f(*color)
+        self.mesh_list[0].render()
+        glDisable(GL_CULL_FACE)
+
+    def render_coloredid(self, id):
+        glColor3ub((id >> 16) & 0xFF, (id >> 8) & 0xFF, (id >> 0) & 0xFF)
+        glPushMatrix()
+        glScalef(1.2, 1.2, 1.2)
+        self.mesh_list[0].render()
+        glPopMatrix()
+
+
 class GenericComplexObject(GenericObject):
     def __init__(self, modelpath, height, tip, eyes, body, rest):
         self.scale = 10

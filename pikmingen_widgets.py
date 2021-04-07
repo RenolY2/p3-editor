@@ -639,6 +639,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 self.models.render_object(pikminobject, pikminobject in selected)
 
         glDisable(GL_TEXTURE_2D)
+        for waypoint in self.waypoints.paths.waypoints:
+            self.models.render_waypoint(waypoint, False)
         self.waypoints.render(self.models)
         """glColor4f(0.0, 1.0, 0.0, 1.0)
         rendered = {}

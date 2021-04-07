@@ -3,7 +3,7 @@ import json
 from OpenGL.GL import *
 from .model_rendering import (GenericObject, Model, TexturedModel,
                               GenericFlyer, GenericCrystallWall, GenericLongLegs, GenericChappy, GenericSnakecrow,
-                              GenericSwimmer)
+                              GenericSwimmer, GenericObjectSphere)
 
 
 class ObjectModels(object):
@@ -15,6 +15,7 @@ class ObjectModels(object):
         self.generic_chappy = GenericChappy()
         self.generic_snakecrow = GenericSnakecrow()
         self.generic_swimmer = GenericSwimmer()
+        self.generic_sphere = GenericObjectSphere()
 
         genericmodels = {
             "Chappy": self.generic_chappy,
@@ -125,6 +126,22 @@ class ObjectModels(object):
 
         glPopMatrix()
 
+    def render_waypoint(self, waypoint, selected):
+        glPushMatrix()
+
+        glTranslatef(waypoint.position.x, -waypoint.position.z, waypoint.position.y)
+
+        self.generic_sphere.render((1.0, 1.0, 1.0, 1.0), selected)
+        glPopMatrix()
+
+    def render_waypoint_coloredid(self, waypoint, id):
+        glPushMatrix()
+
+        glTranslatef(waypoint.position.x, -waypoint.position.z, waypoint.position.y)
+
+        self.generic_sphere.render_coloredid(id)
+        glPopMatrix()
+
     def render_object_coloredid(self, pikminobject, id):
         glPushMatrix()
 
@@ -190,9 +207,10 @@ class WaypointsGraphics(object):
             # p2 = self.paths.waypoints[p2i]
 
             glBegin(GL_LINES)
-            glVertex3f(p1.position.x, -p1.position.z, p1.position.y + 5)
-            glVertex3f(p2.position.x, -p2.position.z, p2.position.y + 5)
+            glVertex3f(p1.position.x, -p1.position.z, p1.position.y + 3)
+            glVertex3f(p2.position.x, -p2.position.z, p2.position.y + 3)
             glEnd()
+
         for p in self.paths.waypoints:
             models.draw_sphere(p.position, p.radius / 2)
 
