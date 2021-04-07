@@ -8,7 +8,11 @@ def read_link(reader: GeneratorReader):
     token = reader.read_token()
 
     vals = token.split(" ")
-    return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
+    try:
+        return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
+    except:
+        print("Tried reading path link at line", reader.current_line-1, "but data was malformed")
+        raise
 
 
 class Waypoint(object):
@@ -61,18 +65,19 @@ class Paths(object):
         self.waypoints = []
 
         self.unique_paths = []
+        
         #self.wide_paths = []
 
         #self.path_info = {}
 
-    def _regenerate_unique_paths(self):
+    def regenerate_unique_paths(self):
         checked = {}
         paths = []
         for waypoint in self.waypoints:
             for link in waypoint.outgoing_links:
-                #print(link)
-                s = waypoint#waypoint.index
-                t = link#link.index
+                # print(link)
+                s = waypoint  # waypoint.index
+                t = link  # link.index
 
                 if (s,t) not in checked and (t,s) not in checked:
                     paths.append((s, t))
@@ -86,7 +91,7 @@ class Paths(object):
                     paths.append((s, t))
                     checked[s, t] = True"""
 
-        return paths
+        self.unique_paths = paths
 
     def _regenerate_pathwidths(self):
         return
@@ -157,7 +162,7 @@ class Paths(object):
             waypoint.waypoint_type = reader.read_integer()
             paths.waypoints.append(waypoint)
 
-        paths.unique_paths = paths._regenerate_unique_paths()
-        paths._regenerate_pathwidths()
+        paths.regenerate_unique_paths()
+        #paths._regenerate_pathwidths()
 
         return paths
