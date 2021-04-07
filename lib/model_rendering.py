@@ -560,11 +560,11 @@ class GenericLongLegs(GenericComplexObject):
         super().__init__("resources/generic_object_longlegs2.obj",
                          height=5.0, tip=3, body=2, eyes=1, rest=0)
 
+
 class GenericChappy(GenericComplexObject):
     def __init__(self):
         super().__init__("resources/generic_chappy.obj",
                          height=2.56745, tip=0, body=2, eyes=1, rest=3)
-
 
 
 class __GenericChappy(GenericObject):
