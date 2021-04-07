@@ -41,6 +41,9 @@ class ObjectModels(object):
         with open("resources/unitcube_solid.obj", "r") as f:
             self.solid_cube = Model.from_obj(f, rotate=True)
 
+        with open("resources/arrow_head.obj", "r") as f:
+            self.arrow_head = Model.from_obj(f, rotate=True, scale=20.0)
+
     def init_gl(self):
         for dirpath, dirs, files in os.walk("resources/objectmodels"):
             for file in files:
@@ -51,6 +54,24 @@ class ObjectModels(object):
 
         # self.generic_wall = TexturedModel.from_obj_path("resources/generic_object_wall2.obj", rotate=True, scale=20.0)
         self.sphere.render()
+        self.arrow_head.render()
+
+    def draw_arrow_head(self, frompos, topos):
+        glPushMatrix()
+        dir = topos - frompos
+        length = dir.norm()
+
+
+        dir.normalize()
+
+        topos = frompos + dir*(length-13)
+
+        glMultMatrixf([dir.x, -dir.z, 0, 0,
+                       -dir.z, -dir.x, 0, 0,
+                       0, 0, 1, 0,
+                       topos.x, -topos.z, topos.y+3, 1])
+        self.arrow_head.render()
+        glPopMatrix()
 
     def draw_sphere(self, position, scale):
         glPushMatrix()
@@ -200,7 +221,7 @@ class WaypointsGraphics(object):
 
         self._displist = glGenLists(1)
         glNewList(self._displist, GL_COMPILE)
-        glColor4f(0.0, 1.0, 0.0, 1.0)
+        glColor4f(0.0, 0.0, 0.0, 1.0)
         #rendered = {}
         for p1, p2 in self.paths.unique_paths:
             # p1 = self.paths.waypoints[p1i]
@@ -210,9 +231,13 @@ class WaypointsGraphics(object):
             glVertex3f(p1.position.x, -p1.position.z, p1.position.y + 3)
             glVertex3f(p2.position.x, -p2.position.z, p2.position.y + 3)
             glEnd()
-
+        glColor4f(0.0, 1.0, 0.0, 1.0)
         for p in self.paths.waypoints:
             models.draw_sphere(p.position, p.radius / 2)
+        glColor4f(0.0, 0.0, 0.0, 1.0)
+        for p in self.paths.waypoints:
+            for out in p.outgoing_links:
+                models.draw_arrow_head(p.position, out.position)
 
         glEndList()
 

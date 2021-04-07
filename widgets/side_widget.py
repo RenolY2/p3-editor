@@ -6,6 +6,8 @@ import PyQt5.QtCore as QtCore
 from PyQt5.QtCore import QSize, pyqtSignal, QPoint, QRect
 from PyQt5.QtCore import Qt
 
+from lib.libpath import Waypoint
+
 class PikminSideWidget(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,7 +134,14 @@ class PikminSideWidget(QWidget):
         self.objectlist = []
 
     def set_info(self, obj, position, rotation=None):
-        self.name_label.setText("Selected: {}".format(obj.name))
+        if isinstance(obj, Waypoint):
+            name = "Waypoint"
+            if obj.id != "":
+                name += " " + obj.id
+        else:
+            name = obj.name
+
+        self.name_label.setText("Selected: {}".format(name))
         #self.identifier_label.setText(obj.get_identifier())
 
         """comment = "Object notes:\n"
@@ -170,8 +179,15 @@ class PikminSideWidget(QWidget):
         objectnames = []
 
         for obj in objs:
+            if isinstance(obj, Waypoint):
+                name = "Waypoint"
+                if obj.id != "":
+                    name += " "+obj.id
+            else:
+                name = obj.name
+
             if len(objectnames) < 25:
-                objectnames.append(obj.name)
+                objectnames.append(name)
             self.objectlist.append(obj)
 
         objectnames.sort()

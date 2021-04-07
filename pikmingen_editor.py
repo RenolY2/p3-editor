@@ -28,7 +28,7 @@ from widgets.side_widget import PikminSideWidget
 from widgets.editor_widgets import PikObjectEditor, open_error_dialog, catch_exception_with_dialog
 from pikmingen_widgets import GenMapViewer, MODE_TOPDOWN
 from lib.sarc import SARCArchive
-from lib.libpath import Paths
+from lib.libpath import Paths, Waypoint
 
 from widgets.file_select import FileSelect
 
@@ -987,10 +987,14 @@ class GenEditor(QMainWindow):
             self._justupdatingselectedobject = True
             if len(self.pikmin_gen_view.selected) == 1:
                 currentobj = selected[0]
-
-                self.pik_control.set_info(currentobj,
-                                          currentobj.position,
-                                          currentobj.rotation)
+                if not hasattr(currentobj, "rotation"):
+                    self.pik_control.set_info(currentobj,
+                                              currentobj.position,
+                                              None)
+                else:
+                    self.pik_control.set_info(currentobj,
+                                              currentobj.position,
+                                              currentobj.rotation)
 
                 #if currentobj.object_type == "{teki}":
                 #    self.pik_control.lineedit_rotationx.setDisabled(True)

@@ -565,7 +565,10 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 objects = self.pikmin_generators.generators
                 glDisable(GL_TEXTURE_2D)
                 for i, pikminobject in enumerate(objects):
-                    self.models.render_object_coloredid(pikminobject, i)
+                    self.models.render_object_coloredid(pikminobject, i*2)
+
+                for i, waypoint in enumerate(self.waypoints.paths.waypoints):
+                    self.models.render_waypoint_coloredid(waypoint, i*2+1)
 
                 pixels = glReadPixels(click_x, click_y, clickwidth, clickheight, GL_RGB, GL_UNSIGNED_BYTE)
                 #print(pixels, click_x, click_y, clickwidth, clickheight)
@@ -587,9 +590,12 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                         if pixels[i*3 + 1] != 0xFF:
                             index = (pixels[i*3 + 1] << 8) | pixels[i*3 + 2]
                             #print(index)
+                            if index & 1:
+                                obj = self.waypoints.paths.waypoints[(index-1)//2]
+                            else:
+                                obj = objects[index//2]
 
-                            pikminobject = objects[index]
-                            selected[pikminobject] = True
+                            selected[obj] = True
                 #print("select time taken", default_timer() - start)
                 selected = list(selected.keys())
 
@@ -630,17 +636,18 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         glEnable(GL_ALPHA_TEST)
         glAlphaFunc(GL_GEQUAL, 0.5)
-
+        selected = self.selected
         if self.pikmin_generators is not None:
-            selected = self.selected
+
             objects = self.pikmin_generators.generators
 
             for pikminobject in objects:
                 self.models.render_object(pikminobject, pikminobject in selected)
 
         glDisable(GL_TEXTURE_2D)
+
         for waypoint in self.waypoints.paths.waypoints:
-            self.models.render_waypoint(waypoint, False)
+            self.models.render_waypoint(waypoint, waypoint in selected)
         self.waypoints.render(self.models)
         """glColor4f(0.0, 1.0, 0.0, 1.0)
         rendered = {}
