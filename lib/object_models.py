@@ -49,6 +49,7 @@ class ObjectModels(object):
                     self.models[objectname] = TexturedModel.from_obj_path(os.path.join(dirpath, file), rotate=True)
 
         # self.generic_wall = TexturedModel.from_obj_path("resources/generic_object_wall2.obj", rotate=True, scale=20.0)
+        self.sphere.render()
 
     def draw_sphere(self, position, scale):
         glPushMatrix()
@@ -139,3 +140,61 @@ class ObjectModels(object):
 
 
         glPopMatrix()
+
+
+class WaypointsGraphics(object):
+    def __init__(self):
+        self.paths = None
+        self.dirty = True
+        self.paths_dirty = True
+        self._displist = None
+
+    def set_paths(self, paths):
+        self.paths = paths
+        self.set_dirty()
+
+    def set_dirty(self):
+        self.dirty = True
+
+    def set_paths_dirty(self):
+        self.paths_dirty = True
+
+    def render(self, models: ObjectModels):
+        if self.paths is not None:
+            if self.paths_dirty:
+                self.update_paths()
+                self.set_dirty()
+                self.paths_dirty = False
+
+            if self.dirty:
+                self.update_displaylist(models)
+                self.dirty = False
+
+            if self._displist is not None:
+                glDisable(GL_TEXTURE_2D)
+                glCallList(self._displist)
+
+    def update_paths(self):
+        self.paths.regenerate_unique_paths()
+
+    def update_displaylist(self, models: ObjectModels):
+        if self._displist is not None:
+            glDeleteLists(self._displist, 1)
+
+        self._displist = glGenLists(1)
+        glNewList(self._displist, GL_COMPILE)
+        glColor4f(0.0, 1.0, 0.0, 1.0)
+        #rendered = {}
+        for p1, p2 in self.paths.unique_paths:
+            # p1 = self.paths.waypoints[p1i]
+            # p2 = self.paths.waypoints[p2i]
+
+            glBegin(GL_LINES)
+            glVertex3f(p1.position.x, -p1.position.z, p1.position.y + 5)
+            glVertex3f(p2.position.x, -p2.position.z, p2.position.y + 5)
+            glEnd()
+        for p in self.paths.waypoints:
+            models.draw_sphere(p.position, p.radius / 2)
+
+        glEndList()
+

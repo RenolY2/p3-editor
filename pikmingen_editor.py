@@ -72,7 +72,8 @@ class GenEditor(QMainWindow):
 
         self.loaded_archive = None
         self.loaded_archive_file = None
-
+        self.loaded_paths = Paths()
+        self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
 
     @catch_exception
     def reset(self):
@@ -414,7 +415,9 @@ class GenEditor(QMainWindow):
             with open(filepath, "r", encoding="shift_jis-2004") as f:
                 try:
                     paths = Paths.from_file(f)
-                    self.pikmin_gen_view.paths = paths
+                    self.loaded_paths = paths
+                    self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
+                    self.pikmin_gen_view.do_redraw()
 
                 except Exception as error:
                     print("Error appeared while loading:", error)

@@ -28,7 +28,7 @@ from lib.vectors import Matrix4x4, Vector3, Line, Plane, Triangle
 import pikmingen
 from lib.model_rendering import TexturedPlane, Model, Grid, GenericObject
 from gizmo import Gizmo
-from lib.object_models import ObjectModels
+from lib.object_models import ObjectModels, WaypointsGraphics
 from editor_controls import UserControl
 from lib.libpath import Paths
 import numpy
@@ -111,10 +111,6 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
 
         self.selected = []
 
-        #self.p = QPainter()
-        #self.p2 = QPainter()
-        # self.show_terrain_mode = SHOW_TERRAIN_REGULAR
-
         self.selectionbox_start = None
         self.selectionbox_end = None
 
@@ -131,7 +127,6 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         self.setMouseTracking(True)
 
         self.pikmin_generators = None
-        self.waterboxes = []
 
         self.mousemode = MOUSE_MODE_NONE
 
@@ -202,6 +197,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         #self.generic_object = GenericObject()
         self.models = ObjectModels()
         self.grid = Grid(10000, 10000)
+        self.waypoints = WaypointsGraphics()
 
         self.modelviewmatrix = None
         self.projectionmatrix = None
@@ -643,7 +639,8 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 self.models.render_object(pikminobject, pikminobject in selected)
 
         glDisable(GL_TEXTURE_2D)
-        glColor4f(0.0, 1.0, 0.0, 1.0)
+        self.waypoints.render(self.models)
+        """glColor4f(0.0, 1.0, 0.0, 1.0)
         rendered = {}
         for p1, p2 in self.paths.unique_paths:
             #p1 = self.paths.waypoints[p1i]
@@ -659,7 +656,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                 rendered[p1] = True
             if p2 not in rendered:
                 self.models.draw_sphere(p2.position, p2.radius/2)
-                rendered[p2] = True
+                rendered[p2] = True"""
         glColor4f(0.0, 1.0, 1.0, 1.0)
         """for points in self.paths.wide_paths:
             glBegin(GL_LINE_LOOP)
