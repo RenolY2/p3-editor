@@ -2,30 +2,12 @@ from collections import OrderedDict
 from copy import deepcopy
 from .libgen import GeneratorReader
 from .vectors import Vector3
+
 WP_BLANK = """
-0 # index
-0 0 0 # pos
-50 # radius
-"" # id
-# ## links
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
-# ## incomings
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
--1 0.00000000 0 0 # link [-1]
-1 # type
+0.0 0.0 0.0 # Waypoint position (ignore this)
+50.0 # Waypoint radius
+"" # Waypoint ID
+0 # Waypoint type
 """
 
 
@@ -35,7 +17,6 @@ class TooManyLinks(Exception):
 
 class LinkAlreadyExists(Exception):
     pass
-
 
 
 def read_link(reader: GeneratorReader):
@@ -148,7 +129,16 @@ class Waypoint(object):
         del self.outgoing_links[waypoint]
         del waypoint.incoming_links[self]
 
+    @classmethod
+    def from_compact_path_data(cls, reader):
 
+        position = Vector3(*reader.read_vector3f())
+        radius = reader.read_float()
+        id = reader.read_string()
+        waypoint_type = reader.read_integer()
+
+        waypoint = cls(None, id, position, radius)
+        return waypoint
 
     """def get_incoming_info(self, index):
         for val in self.incoming_links:

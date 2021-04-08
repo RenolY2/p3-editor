@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt
 import PyQt5.QtGui as QtGui
 
 from lib.libgen import GeneratorWriter, GeneratorObject, GeneratorReader
-from lib.libpath import WP_BLANK
+from lib.libpath import WP_BLANK, Waypoint
 
 
 def catch_exception(func):
@@ -256,7 +256,10 @@ class AddPikObjectWindow(PikObjectEditor):
             file.write(content)
             file.seek(0)
             reader = GeneratorReader(file)
-            obj = GeneratorObject.from_generator_file(reader)
+            if self.category_menu.currentIndex() == 2:
+                obj = Waypoint.from_compact_path_data(reader)
+            else:
+                obj = GeneratorObject.from_generator_file(reader)
             del reader
             del file
             return obj

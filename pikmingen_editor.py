@@ -1,4 +1,5 @@
 import traceback
+from copy import deepcopy
 from timeit import default_timer
 from io import TextIOWrapper, BytesIO, StringIO
 import PyQt5.QtWidgets as QtWidgets
@@ -638,7 +639,10 @@ class GenEditor(QMainWindow):
 
     @catch_exception
     def action_add_object(self, x, z):
-        newobj = self.object_to_be_added.copy()
+        if isinstance(self.object_to_be_added, Waypoint):
+            newobj = deepcopy(self.object_to_be_added)
+        else:
+            newobj = self.object_to_be_added.copy()
         newobj.position.x = x
         newobj.position.z = z
 
@@ -647,26 +651,35 @@ class GenEditor(QMainWindow):
                 y = self.pikmin_gen_view.collision.collide_ray_downwards(x, z)
                 if y is not None:
                     newobj.position.y = y
-
-        self.pikmin_gen_file.generators.append(newobj)
+        if isinstance(newobj, Waypoint):
+            self.pikmin_gen_view.waypoints.paths.waypoints.append(newobj)
+        else:
+            self.pikmin_gen_file.generators.append(newobj)
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
+        self.pikmin_gen_view.waypoints.set_paths_dirty()
 
         self.history.add_history_addobject(newobj)
         self.set_has_unsaved_changes(True)
 
     @catch_exception
     def action_add_object_3d(self, x, y, z):
-        newobj = self.object_to_be_added.copy()
+        if isinstance(self.object_to_be_added, Waypoint):
+            newobj = deepcopy(self.object_to_be_added)
+        else:
+            newobj = self.object_to_be_added.copy()
 
         newobj.position.x = round(x, 6)
         newobj.position.y = round(y, 6)
         newobj.position.z = round(z, 6)
         #newobj.offset_x = newobj.offset_y = newobj.offset_z = 0.0
-
-        self.pikmin_gen_file.generators.append(newobj)
+        if isinstance(newobj, Waypoint):
+            self.pikmin_gen_view.waypoints.paths.waypoints.append(newobj)
+        else:
+            self.pikmin_gen_file.generators.append(newobj)
         # self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
+        self.pikmin_gen_view.waypoints.set_paths_dirty()
 
         self.history.add_history_addobject(newobj)
         self.set_has_unsaved_changes(True)

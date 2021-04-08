@@ -332,8 +332,10 @@ EXPKIT_TREASURES = {
     "12": "The Key"
 }
 
+
 def assert_notlist(val):
     assert not isinstance(val, list)
+
 
 class PikminObject(object):
     def __init__(self):

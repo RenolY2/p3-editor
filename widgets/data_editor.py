@@ -478,6 +478,18 @@ anchor_dropdown["Center-Bottom"] = 7
 anchor_dropdown["Bottom-Right"] = 8
 
 
+def create_synchronizer(link_widget, wp_data):
+    def synchronize_linkdata():
+        text = link_widget[1].text()
+        wp_data[1] = int(text)
+
+    def synchronize_linkdata2():
+        text = link_widget[2].text()
+        wp_data[2] = int(text)
+
+    return synchronize_linkdata, synchronize_linkdata2
+
+
 class WaypointEdit(DataEditor):
     def setup_widgets(self):
         self.bound_to: Waypoint
@@ -489,13 +501,32 @@ class WaypointEdit(DataEditor):
         self.in_links = {}
         self.out_links = {}
 
+
+
         wp: Waypoint
         for wp in self.bound_to.outgoing_links:
             self.out_links[wp] = self.add_link_edit(wp.short_name(), self.bound_to.outgoing_links[wp])
 
+            sync1, sync2 = create_synchronizer(self.out_links[wp], wp.incoming_links[self.bound_to])
+
+            self.out_links[wp][1].editingFinished.connect(sync1)
+            self.out_links[wp][2].editingFinished.connect(sync2)
+
         self.add_label("Incoming Links:")
         for wp in self.bound_to.incoming_links:
             self.in_links[wp] = self.add_link_edit(wp.short_name(), self.bound_to.incoming_links[wp])
+
+            """def synchronize_linkdata1():
+                text = self.in_links[wp][1].text()
+                wp.outgoing_links[self.bound_to][1] = int(text)
+
+            def synchronize_linkdata2():
+                text = self.in_links[wp][2].text()
+                wp.outgoing_links[self.bound_to][2] = int(text)"""
+            sync1, sync2 = create_synchronizer(self.in_links[wp], wp.outgoing_links[self.bound_to])
+
+            self.in_links[wp][1].editingFinished.connect(sync1)
+            self.in_links[wp][2].editingFinished.connect(sync2)
 
     def update_data(self):
         super().update_data()
@@ -508,7 +539,6 @@ class WaypointEdit(DataEditor):
             self.in_links[wp][0].setText(str(data[0]))
             self.in_links[wp][1].setText(str(data[1]))
             self.in_links[wp][2].setText(str(data[2]))
-
 
     def add_link_edit(self, text, link_list):
         line_edits = []
