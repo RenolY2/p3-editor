@@ -75,8 +75,11 @@ class GenEditor(QMainWindow):
         self.loaded_paths = Paths()
         self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
 
+        self.last_waypoint = None
+
     @catch_exception
     def reset(self):
+        self.last_waypoint = None
         self.loaded_archive = None
         self.loaded_archive_file = None
         self.history.reset()
@@ -337,6 +340,10 @@ class GenEditor(QMainWindow):
         redo_shortcut.activated.connect(self.action_redo)
 
         self.pikmin_gen_view.rotate_current.connect(self.action_rotate_object)
+
+
+        self.pik_control.button_connect.pressed.connect(self.action_connect_button_pressed)
+        self.pik_control.button_disconnect.pressed.connect(self.action_disconnect_button_pressed)
 
     def action_open_rotationedit_window(self):
         if self.edit_spawn_window is None:
@@ -827,18 +834,22 @@ class GenEditor(QMainWindow):
     def action_delete_objects(self):
         tobedeleted = []
         for obj in self.pikmin_gen_view.selected:
-            self.pikmin_gen_file.generators.remove(obj)
-            if obj in self.editing_windows:
-                self.editing_windows[obj].destroy()
-                del self.editing_windows[obj]
+            if isinstance(obj, Waypoint):
+                self.pikmin_gen_view.waypoints.paths.remove_waypoint(obj)
+            else:
+                self.pikmin_gen_file.generators.remove(obj)
+                if obj in self.editing_windows:
+                    self.editing_windows[obj].destroy()
+                    del self.editing_windows[obj]
 
-            tobedeleted.append(obj)
+                tobedeleted.append(obj)
         self.pikmin_gen_view.selected = []
 
         self.pik_control.reset_info()
         self.pikmin_gen_view.gizmo.hidden = True
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
+        self.pikmin_gen_view.waypoints.set_paths_dirty()
         self.history.add_history_removeobjects(tobedeleted)
         self.set_has_unsaved_changes(True)
 
@@ -1001,6 +1012,19 @@ class GenEditor(QMainWindow):
             self._justupdatingselectedobject = True
             if len(self.pikmin_gen_view.selected) == 1:
                 currentobj = selected[0]
+
+                if isinstance(currentobj, Waypoint):
+                    if self.pik_control.button_connect.isChecked():
+                        if currentobj != self.last_waypoint:
+                            data = (100.0, 0, 0)
+
+                            self.last_waypoint.add_path_to(currentobj, *data)
+                            self.last_waypoint = currentobj
+                    elif self.pik_control.button_disconnect.isChecked():
+                        if currentobj != self.last_waypoint:
+                            self.last_waypoint.remove_path_to(currentobj)
+                            self.last_waypoint = currentobj
+                    self.pikmin_gen_view.waypoints.set_paths_dirty()
                 if not hasattr(currentobj, "rotation"):
                     self.pik_control.set_info(self.update_3d, currentobj,
                                               currentobj.position,
@@ -1045,6 +1069,22 @@ class GenEditor(QMainWindow):
     def action_update_position(self, event, pos):
         self.current_coordinates = pos
         self.statusbar.showMessage(str(pos))
+
+    def action_connect_button_pressed(self):
+        print("Hey")
+        is_checked = self.pik_control.button_connect.isChecked()
+        self.pik_control.button_disconnect.setChecked(False)
+        print(is_checked)
+        if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
+            self.last_waypoint = self.pikmin_gen_view.selected[0]
+        #self.pik_control.button_connect.setChecked(True)
+
+    def action_disconnect_button_pressed(self):
+        is_checked = self.pik_control.button_disconnect.isChecked()
+        self.pik_control.button_connect.setChecked(False)
+        if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
+            self.last_waypoint = self.pikmin_gen_view.selected[0]
+        #self.pik_control.button_disconnect.setChecked(not is_checked)
 
 
 class EditorHistory(object):
@@ -1095,7 +1135,9 @@ class EditorHistory(object):
         self.step += 1
         return item
 
+
 import sys
+
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 

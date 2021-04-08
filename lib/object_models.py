@@ -68,13 +68,14 @@ class ObjectModels(object):
         self.arrow_head.render()
 
     def draw_arrow_head(self, frompos, topos):
-        glPushMatrix()
+
         dir = topos - frompos
         length = dir.norm()
-
+        if length == 0:
+            return
 
         dir.normalize()
-
+        glPushMatrix()
         topos = frompos + dir*(length-13)
 
         glMultMatrixf([dir.x, -dir.z, 0, 0,

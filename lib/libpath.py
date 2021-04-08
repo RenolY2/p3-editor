@@ -1,5 +1,5 @@
 from collections import OrderedDict
-
+from copy import deepcopy
 from .libgen import GeneratorReader
 from .vectors import Vector3
 WP_BLANK = """
@@ -27,6 +27,16 @@ WP_BLANK = """
 -1 0.00000000 0 0 # link [-1]
 1 # type
 """
+
+
+class TooManyLinks(Exception):
+    pass
+
+
+class LinkAlreadyExists(Exception):
+    pass
+
+
 
 def read_link(reader: GeneratorReader):
     token = reader.read_token()
@@ -79,7 +89,6 @@ class Waypoint(object):
 
         return wpname
 
-
     def remove_link(self, waypoint):
         if waypoint in self.incoming_links:
             del self.incoming_links[waypoint]
@@ -88,18 +97,58 @@ class Waypoint(object):
 
     def add_incoming(self, waypoint, unkfloat, unkint, unkint2):
         if len(self.incoming_links) >= 8:
-            raise RuntimeError("Too many incoming links, cannot add more")
+            raise TooManyLinks("Too many incoming links, cannot add more")
         if waypoint in self.incoming_links:
-            raise RuntimeError("Link already exists")
+            raise LinkAlreadyExists("Link already exists")
 
         self.incoming_links[waypoint] = [unkfloat, unkint, unkint2]
 
     def add_outgoing(self, waypoint, unkfloat, unkint, unkint2):
         if len(self.outgoing_links) >= 8:
-            raise RuntimeError("Too many outgoing links, cannot add more")
+            raise TooManyLinks("Too many outgoing links, cannot add more")
         if waypoint in self.outgoing_links:
-            raise RuntimeError("Link already exists")
+            raise LinkAlreadyExists("Link already exists")
         self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2]
+
+    def add_path_to(self, waypoint, unkfloat, unkint, unkint2):
+        if waypoint in self.outgoing_links and self in waypoint.incoming_links:
+            return
+
+        if waypoint in self.outgoing_links and not self in waypoint.incoming_links:
+            raise RuntimeError("This is a very odd situation between {0} and {1}".format(
+                self.name(), waypoint.name()
+            ))
+
+        if waypoint not in self.outgoing_links and self in waypoint.incoming_links:
+            raise RuntimeError("This is a very odd situation between {0} and {1}".format(
+                self.name(), waypoint.name()
+            ))
+
+        if len(self.outgoing_links) >= 8 or len(waypoint.incoming_links) >= 8:
+            raise TooManyLinks("Destination or Start Waypoint has 8 links already. (MAX)")
+
+        unkfloat = round((waypoint.position - self.position).norm(), 8)
+
+        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2]
+        waypoint.incoming_links[self] = [unkfloat, unkint, unkint2]
+
+    def remove_path_to(self, waypoint):
+        if waypoint not in self.outgoing_links and self not in waypoint.incoming_links:
+            return
+
+        if waypoint in self.outgoing_links and not self in waypoint.incoming_links:
+            raise RuntimeError("This is a very odd situation between {0} and {1}".format(
+                self.name(), waypoint.name()
+            ))
+
+        if waypoint not in self.outgoing_links and self in waypoint.incoming_links:
+            raise RuntimeError("This is a very odd situation between {0} and {1}".format(
+                self.name(), waypoint.name()
+            ))
+        del self.outgoing_links[waypoint]
+        del waypoint.incoming_links[self]
+
+
 
     """def get_incoming_info(self, index):
         for val in self.incoming_links:
@@ -123,6 +172,31 @@ class Paths(object):
         #self.wide_paths = []
 
         #self.path_info = {}
+
+    def remove_waypoint(self, wp):
+        self.waypoints.remove(wp)
+        for other_wp in self.waypoints:
+            other_wp.remove_link(wp)
+
+    def readd_waypoint(self, wp):
+        wp = deepcopy(wp)
+        self.waypoints.append(wp)
+
+        for other_wp, data in wp.incoming_links.items():
+            try:
+                other_wp.add_outgoing(wp, *data)
+            except LinkAlreadyExists:
+                pass
+            except TooManyLinks:
+                del wp.incoming_links[other_wp]
+
+        for other_wp, data in wp.outgoing_links.items():
+            try:
+                other_wp.add_incoming(wp, *data)
+            except LinkAlreadyExists:
+                pass
+            except TooManyLinks:
+                del wp.outgoing_links[other_wp]
 
     def regenerate_unique_paths(self):
         checked = {}
@@ -215,6 +289,13 @@ class Paths(object):
                     waypoint.add_incoming(waypoints[wp], *data)
             waypoint.waypoint_type = reader.read_integer()
             paths.waypoints.append(waypoint)
+
+        for waypoint in paths.waypoints:
+            for wp in waypoint.outgoing_links:
+                assert waypoint in wp.incoming_links
+                assert waypoint.outgoing_links[wp][1] == wp.incoming_links[waypoint][1]
+                assert waypoint.outgoing_links[wp][2] == wp.incoming_links[waypoint][2]
+
 
         paths.regenerate_unique_paths()
         #paths._regenerate_pathwidths()

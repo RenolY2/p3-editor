@@ -70,12 +70,8 @@ class PikminSideWidget(QWidget):
         self.connectLayout.addWidget(self.button_disconnect)
         self.verticalLayout.addLayout(self.connectLayout)
 
-        """self.connectLayout2 = QHBoxLayout(self)
-        self.button_connect2way = QPushButton("Add 2 Way Path", self)
-        self.button_disconnect2way = QPushButton("Remove 2 Way Path", self)
-        self.connectLayout2.addWidget(self.button_connect2way)
-        self.connectLayout2.addWidget(self.button_disconnect2way)
-        self.verticalLayout.addLayout(self.connectLayout2)"""
+        self.button_connect.setCheckable(True)
+        self.button_disconnect.setCheckable(True)
 
         self.verticalLayout.addSpacing(20)
 
