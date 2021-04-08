@@ -63,6 +63,20 @@ class PikminSideWidget(QWidget):
         self.verticalLayout.addWidget(self.button_ground_object)
         #self.verticalLayout.addWidget(self.button_move_object)
         self.verticalLayout.addWidget(self.button_edit_object)
+        self.connectLayout = QHBoxLayout(self)
+        self.button_connect = QPushButton("Add Path", self)
+        self.button_disconnect = QPushButton("Remove Path", self)
+        self.connectLayout.addWidget(self.button_connect)
+        self.connectLayout.addWidget(self.button_disconnect)
+        self.verticalLayout.addLayout(self.connectLayout)
+
+        """self.connectLayout2 = QHBoxLayout(self)
+        self.button_connect2way = QPushButton("Add 2 Way Path", self)
+        self.button_disconnect2way = QPushButton("Remove 2 Way Path", self)
+        self.connectLayout2.addWidget(self.button_connect2way)
+        self.connectLayout2.addWidget(self.button_disconnect2way)
+        self.verticalLayout.addLayout(self.connectLayout2)"""
+
         self.verticalLayout.addSpacing(20)
 
 
@@ -151,14 +165,22 @@ class PikminSideWidget(QWidget):
             self.object_data_edit.deleteLater()
             del self.object_data_edit
             self.object_data_edit = None
-
+        self.button_edit_object.setEnabled(True)
+        self.button_connect.setEnabled(False)
+        self.button_disconnect.setEnabled(False)
         self.objectlist = []
 
     def set_info(self, update3d, obj, position, rotation=None):
         if isinstance(obj, Waypoint):
             name = obj.name()
+            self.button_edit_object.setEnabled(False)
+            self.button_connect.setEnabled(True)
+            self.button_disconnect.setEnabled(True)
         else:
             name = obj.name
+            self.button_edit_object.setEnabled(True)
+            self.button_connect.setEnabled(False)
+            self.button_disconnect.setEnabled(False)
 
         self.name_label.setText("Selected: {}".format(name))
         #self.identifier_label.setText(obj.get_identifier())
