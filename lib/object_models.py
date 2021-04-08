@@ -6,6 +6,17 @@ from .model_rendering import (GenericObject, Model, TexturedModel,
                               GenericSwimmer, GenericObjectSphere)
 
 
+WAYPOINT_NODE_COLOR = {
+    1: (1.0, 1.0, 1.0, 1.0),  # White
+    8: (1.0, 1.0, 0.0, 1.0),  # Yellow
+    16: (1.0, 0.5, 0.0, 1.0),  # Orange
+    17: (1.0, 0.0, 1.0, 1.0),  # Purple
+    129: (1.0, 0.0, 0.0, 1.0),  # Red
+    137: (0.0, 1.0, 0.0, 1.0),  # Green
+    144: (0.0, 1.0, 1.0, 1.0),  # Cyan
+    161: (0.0, 0.0, 1.0, 1.0)  # Blue
+}
+
 class ObjectModels(object):
     def __init__(self):
         self.models = {}
@@ -151,8 +162,12 @@ class ObjectModels(object):
         glPushMatrix()
 
         glTranslatef(waypoint.position.x, -waypoint.position.z, waypoint.position.y)
+        if waypoint.waypoint_type in WAYPOINT_NODE_COLOR:
+            color = WAYPOINT_NODE_COLOR[waypoint.waypoint_type]
+        else:
+            color = (0.5, 0.5, 0.5, 1.0)
 
-        self.generic_sphere.render((1.0, 1.0, 1.0, 1.0), selected)
+        self.generic_sphere.render(color, selected)
         glPopMatrix()
 
     def render_waypoint_coloredid(self, waypoint, id):

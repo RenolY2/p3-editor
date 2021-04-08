@@ -405,6 +405,10 @@ class PikminObject(object):
         #print("Object", self.identifier, "with position", self.position_x, self.position_y, self.position_z)
         self.update_useful_name()
 
+    def update_3d(self):
+        #self.level_view.gizmo.move_to_average(self.level_view.selected_positions)
+        self.level.do_redraw()
+
     def from_pikmin_object(self, other_pikminobj):
         self.version = other_pikminobj.version
         self.reserved = other_pikminobj.reserved

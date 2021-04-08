@@ -13,6 +13,8 @@ from PyQt5.QtCore import Qt
 import PyQt5.QtGui as QtGui
 
 from lib.libgen import GeneratorWriter, GeneratorObject, GeneratorReader
+from lib.libpath import WP_BLANK
+
 
 def catch_exception(func):
     def handle(*args, **kwargs):
@@ -267,6 +269,7 @@ class AddPikObjectWindow(PikObjectEditor):
         self.category_menu = QtWidgets.QComboBox(self)
         self.category_menu.addItem("-- select object category --")
         self.category_menu.addItem("[None]")
+        self.category_menu.addItem("Waypoint")
 
         self.template_menu = QtWidgets.QComboBox(self)
         self.template_menu.addItem("-- select object template --")
@@ -292,6 +295,8 @@ class AddPikObjectWindow(PikObjectEditor):
         self.template_menu.addItem("-- select object template --")
         self.template_menu.addItem("[None]")
 
+        self.template_menu.setEnabled(True)
+        print("ohaiiiiii", index)
         if index == 1:
 
             for dirpath, dirs, files in os.walk("./object_templates"):
@@ -299,14 +304,18 @@ class AddPikObjectWindow(PikObjectEditor):
                     self.template_menu.addItem(filename)
 
                 break
-        elif index > 1:
+
+        elif index == 2:
+            self.template_menu.setEnabled(False)
+            self.textbox_xml.setText(WP_BLANK)
+
+        elif index > 2:
             dirname = self.category_menu.currentText()
             for dirpath, dirs, files in os.walk(os.path.join("object_templates", dirname)):
                 for filename in files:
                     self.template_menu.addItem(filename)
 
                 break
-
 
     @catch_exception_with_dialog
     def read_template_file_into_window(self, index):

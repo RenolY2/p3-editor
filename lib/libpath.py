@@ -2,7 +2,31 @@ from collections import OrderedDict
 
 from .libgen import GeneratorReader
 from .vectors import Vector3
-
+WP_BLANK = """
+0 # index
+0 0 0 # pos
+50 # radius
+"" # id
+# ## links
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+# ## incomings
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+-1 0.00000000 0 0 # link [-1]
+1 # type
+"""
 
 def read_link(reader: GeneratorReader):
     token = reader.read_token()
@@ -16,15 +40,45 @@ def read_link(reader: GeneratorReader):
 
 
 class Waypoint(object):
-    def __init__(self, index, id, position, radius):
+    def __init__(self, index, id, position, radius, wp_list=None):
         self.index = index
         self.position = position
         self.radius = radius
         self.id = id
-        self.waypoint_type = None
+        self.waypoint_type = 0
 
         self.incoming_links = OrderedDict()
         self.outgoing_links = OrderedDict()
+
+        self._wp_list: list = wp_list
+
+    def get_index(self):
+        if self._wp_list is None:
+            return None
+        else:
+            if self in self._wp_list:
+                return self._wp_list.index(self)
+            else:
+                return None
+
+    def name(self):
+        wpname = "Waypoint"
+        if self.id != "":
+            wpname += " "+self.id
+        index = self.get_index()
+        if index is not None:
+            wpname += " ({0})".format(index)
+
+        return wpname
+
+    def short_name(self):
+        wpname = "WP"
+        index = self.get_index()
+        if index is not None:
+            wpname += " {0}".format(index)
+
+        return wpname
+
 
     def remove_link(self, waypoint):
         if waypoint in self.incoming_links:
@@ -38,14 +92,14 @@ class Waypoint(object):
         if waypoint in self.incoming_links:
             raise RuntimeError("Link already exists")
 
-        self.incoming_links[waypoint] = (unkfloat, unkint, unkint2)
+        self.incoming_links[waypoint] = [unkfloat, unkint, unkint2]
 
     def add_outgoing(self, waypoint, unkfloat, unkint, unkint2):
         if len(self.outgoing_links) >= 8:
             raise RuntimeError("Too many outgoing links, cannot add more")
         if waypoint in self.outgoing_links:
             raise RuntimeError("Link already exists")
-        self.outgoing_links[waypoint] = (unkfloat, unkint, unkint2)
+        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2]
 
     """def get_incoming_info(self, index):
         for val in self.incoming_links:
@@ -135,7 +189,7 @@ class Paths(object):
             raise RuntimeError("Unsupported Path Version: {0}".format(version))
 
         pointcount = reader.read_integer()
-        waypoints = [Waypoint(i, "", Vector3(0.0, 0.0, 0.0), 100) for i in range(pointcount)]
+        waypoints = [Waypoint(i, "", Vector3(0.0, 0.0, 0.0), 100, paths.waypoints) for i in range(pointcount)]
 
         for i in range(pointcount):
             assert i == reader.read_integer()  # index

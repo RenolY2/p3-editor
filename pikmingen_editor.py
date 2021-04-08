@@ -687,6 +687,7 @@ class GenEditor(QMainWindow):
 
     @catch_exception
     def action_move_objects(self, deltax, deltay, deltaz):
+        updatePaths = False
         for obj in self.pikmin_gen_view.selected:
             """obj.x += deltax
             obj.z += deltaz
@@ -705,12 +706,20 @@ class GenEditor(QMainWindow):
             obj.position.x += deltax
             obj.position.y += deltay
             obj.position.z += deltaz
+            if isinstance(obj, Waypoint):
+                updatePaths = True
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, obj.position, obj.rotation)
+            if hasattr(obj, "rotation"):
+                self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
+            else:
+                self.pik_control.set_info(self.update_3d, obj, obj.position, None)
+
 
         #self.pikmin_gen_view.update()
+        if updatePaths:
+            self.pikmin_gen_view.waypoints.set_dirty()
         self.pikmin_gen_view.do_redraw()
         self.set_has_unsaved_changes(True)
 
@@ -725,7 +734,7 @@ class GenEditor(QMainWindow):
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, (obj.x, obj.y, obj.z), obj.get_rotation())
+            self.pik_control.set_info(self.update_3d, obj, (obj.x, obj.y, obj.z), obj.get_rotation())
 
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
@@ -793,7 +802,7 @@ class GenEditor(QMainWindow):
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, obj.position, obj.rotation)
+            self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
 
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
@@ -810,7 +819,7 @@ class GenEditor(QMainWindow):
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(obj, obj.position, obj.rotation)
+            self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
         self.pikmin_gen_view.gizmo.move_to_average(self.pikmin_gen_view.selected)
         self.set_has_unsaved_changes(True)
         self.pikmin_gen_view.do_redraw()
@@ -960,7 +969,7 @@ class GenEditor(QMainWindow):
                         newobj = self.editing_windows[currentobj].get_content()
                         if newobj is not None:
                             currentobj.from_other(newobj)
-                            self.pik_control.set_info(currentobj,
+                            self.pik_control.set_info(self.update_3d, currentobj,
                                                       currentobj.position,
                                                       currentobj.rotation)
                             #self.pikmin_gen_view.update()
@@ -980,6 +989,11 @@ class GenEditor(QMainWindow):
                 else:
                     self.editing_windows[currentobj].activateWindow()
 
+    def update_3d(self):
+        #self.pikmin_gen_view.gizmo.move_to_average(self.level_view.selected_positions)
+        self.pikmin_gen_view.waypoints.set_dirty()
+        self.pikmin_gen_view.do_redraw()
+
     @catch_exception
     def action_update_info(self):
         if self.pikmin_gen_file is not None:
@@ -988,11 +1002,11 @@ class GenEditor(QMainWindow):
             if len(self.pikmin_gen_view.selected) == 1:
                 currentobj = selected[0]
                 if not hasattr(currentobj, "rotation"):
-                    self.pik_control.set_info(currentobj,
+                    self.pik_control.set_info(self.update_3d, currentobj,
                                               currentobj.position,
                                               None)
                 else:
-                    self.pik_control.set_info(currentobj,
+                    self.pik_control.set_info(self.update_3d, currentobj,
                                               currentobj.position,
                                               currentobj.rotation)
 
