@@ -177,9 +177,8 @@ class DataEditor(QWidget):
         line_edit.setMaxLength(maxlength)
 
         def input_edited():
-            print("edited AAAAaaa", line_edit.text())
             text = line_edit.text()
-            text = text.rjust(maxlength, pad)
+            #text = text.rjust(maxlength, pad)
             setattr(self.bound_to, attribute, text)
 
         line_edit.editingFinished.connect(input_edited)
@@ -482,7 +481,7 @@ anchor_dropdown["Bottom-Right"] = 8
 class WaypointEdit(DataEditor):
     def setup_widgets(self):
         self.bound_to: Waypoint
-        self.name = self.add_updater(self.add_text_input, "id", "Node ID", maxlength=5000)
+        self.name = self.add_updater(self.add_text_input, "id", "Node ID", maxlength=100)
         self.radius = self.add_updater(self.add_decimal_input, "radius", "Radius", 0, +inf)
         self.waypoint_type = self.add_updater(self.add_integer_input, "waypoint_type", "Node Type", 0, MAX_UNSIGNED_INT)
 
