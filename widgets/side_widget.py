@@ -235,9 +235,7 @@ class PikminSideWidget(QWidget):
 
         for obj in objs:
             if isinstance(obj, Waypoint):
-                name = "Waypoint"
-                if obj.id != "":
-                    name += " "+obj.id
+                name = obj.name()
             else:
                 name = obj.name
 

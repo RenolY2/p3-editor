@@ -196,6 +196,12 @@ class GenEditor(QMainWindow):
         self.paths_load = QAction("Load Paths", self)
         self.paths_load.triggered.connect(self.button_load_paths)
         self.paths_menu.addAction(self.paths_load)
+        self.paths_save = QAction("Save Paths", self)
+        self.paths_save.triggered.connect(self.button_save_paths)
+        self.paths_menu.addAction(self.paths_save)
+        self.paths_save_as = QAction("Save Paths As", self)
+        self.paths_save_as.triggered.connect(self.button_save_paths_as)
+        self.paths_menu.addAction(self.paths_save_as)
 
         # ------ Collision Menu
         self.collision_menu = QMenu(self.menubar)
@@ -417,7 +423,7 @@ class GenEditor(QMainWindow):
         filepath, choosentype = QFileDialog.getOpenFileName(
             self, "Open File",
             self.pathsconfig["gen"],
-            "Path file(path.txt;*.txt);;All files (*)")
+            "Path file (path.txt;*.txt);;Archived Path file (*.szs);;All files (*)")
 
         if filepath:
             with open(filepath, "r", encoding="shift_jis-2004") as f:
@@ -431,6 +437,12 @@ class GenEditor(QMainWindow):
                     print("Error appeared while loading:", error)
                     traceback.print_exc()
                     open_error_dialog(str(error), self)
+
+    def button_save_paths(self):
+        pass
+
+    def button_save_paths_as(self):
+        pass
 
     def setup_gen_file(self, pikmin_gen_file, filepath):
         self.pikmin_gen_file = pikmin_gen_file
@@ -653,6 +665,7 @@ class GenEditor(QMainWindow):
                     newobj.position.y = y
         if isinstance(newobj, Waypoint):
             self.pikmin_gen_view.waypoints.paths.waypoints.append(newobj)
+            newobj._wp_list = self.pikmin_gen_view.waypoints.paths.waypoints
         else:
             self.pikmin_gen_file.generators.append(newobj)
         #self.pikmin_gen_view.update()
@@ -675,6 +688,7 @@ class GenEditor(QMainWindow):
         #newobj.offset_x = newobj.offset_y = newobj.offset_z = 0.0
         if isinstance(newobj, Waypoint):
             self.pikmin_gen_view.waypoints.paths.waypoints.append(newobj)
+            newobj._wp_list = self.pikmin_gen_view.waypoints.paths.waypoints
         else:
             self.pikmin_gen_file.generators.append(newobj)
         # self.pikmin_gen_view.update()
@@ -855,7 +869,7 @@ class GenEditor(QMainWindow):
                     self.editing_windows[obj].destroy()
                     del self.editing_windows[obj]
 
-                tobedeleted.append(obj)
+            tobedeleted.append(obj)
         self.pikmin_gen_view.selected = []
 
         self.pik_control.reset_info()
@@ -875,10 +889,13 @@ class GenEditor(QMainWindow):
 
         if action == "AddObject":
             obj = val
-            self.pikmin_gen_file.generators.remove(obj)
-            if obj in self.editing_windows:
-                self.editing_windows[obj].destroy()
-                del self.editing_windows[obj]
+            if isinstance(obj, Waypoint):
+                self.pikmin_gen_view.waypoints.paths.remove_waypoint(obj)
+            else:
+                self.pikmin_gen_file.generators.remove(obj)
+                if obj in self.editing_windows:
+                    self.editing_windows[obj].destroy()
+                    del self.editing_windows[obj]
 
             if len(self.pikmin_gen_view.selected) == 1 and self.pikmin_gen_view.selected[0] is obj:
                 self.pik_control.reset_info()
@@ -893,10 +910,17 @@ class GenEditor(QMainWindow):
 
         if action == "RemoveObjects":
             for obj in val:
-                self.pikmin_gen_file.generators.append(obj)
+                if isinstance(obj, Waypoint):
+                    print("trying to read a removed waypoint")
+                    self.pikmin_gen_view.waypoints.paths.readd_waypoint(obj)
+                else:
+                    self.pikmin_gen_file.generators.append(obj)
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
+
+        self.pikmin_gen_view.waypoints.set_paths_dirty()
+
         self.set_has_unsaved_changes(True)
 
     @catch_exception
@@ -909,17 +933,24 @@ class GenEditor(QMainWindow):
 
         if action == "AddObject":
             obj = val
-            self.pikmin_gen_file.generators.append(obj)
+            if isinstance(obj, Waypoint):
+                self.pikmin_gen_view.waypoints.paths.readd_waypoint(obj)
+            else:
+                self.pikmin_gen_file.generators.append(obj)
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
 
         if action == "RemoveObjects":
             for obj in val:
-                self.pikmin_gen_file.generators.remove(obj)
-                if obj in self.editing_windows:
-                    self.editing_windows[obj].destroy()
-                    del self.editing_windows[obj]
+                if isinstance(obj, Waypoint):
+                    print("trying to remove an waypoint")
+                    self.pikmin_gen_view.waypoints.paths.remove_waypoint(obj)
+                else:
+                    self.pikmin_gen_file.generators.remove(obj)
+                    if obj in self.editing_windows:
+                        self.editing_windows[obj].destroy()
+                        del self.editing_windows[obj]
 
                 if len(self.pikmin_gen_view.selected) == 1 and self.pikmin_gen_view.selected[0] is obj:
                     self.pik_control.reset_info()
@@ -931,6 +962,7 @@ class GenEditor(QMainWindow):
 
             #self.pikmin_gen_view.update()
             self.pikmin_gen_view.do_redraw()
+        self.pikmin_gen_view.waypoints.set_paths_dirty()
         self.set_has_unsaved_changes(True)
 
     def create_field_edit_action(self, fieldname):

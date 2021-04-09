@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from .libgen import GeneratorReader
+from .libgen import GeneratorReader, GeneratorWriter
 from .vectors import Vector3
 
 WP_BLANK = """
@@ -28,6 +28,15 @@ def read_link(reader: GeneratorReader):
     except:
         print("Tried reading path link at line", reader.current_line-1, "but data was malformed")
         raise
+
+def write_link(writer: GeneratorWriter, index, distance, val1, val2):
+    res = "{0} {1.8f} {2} {3}".format(index, distance, val1, val2)
+
+    if "e" in res or "inf" in res:
+        raise RuntimeError("invalid float: {0}".format(res))
+
+    writer.write_token(res)
+
 
 
 class Waypoint(object):
@@ -169,7 +178,7 @@ class Paths(object):
             other_wp.remove_link(wp)
 
     def readd_waypoint(self, wp):
-        wp = deepcopy(wp)
+        #wp = deepcopy(wp)
         self.waypoints.append(wp)
 
         for other_wp, data in wp.incoming_links.items():
@@ -291,3 +300,32 @@ class Paths(object):
         #paths._regenerate_pathwidths()
 
         return paths
+
+    def write(self, f):
+        writer = GeneratorWriter(f)
+
+        writer.write_integer(5)
+        writer.write_integer(len(self.waypoints))
+
+        for i, waypoint in enumerate(self.waypoints):
+            writer.write_comment("# ------------------")
+            writer.write_integer(i)
+            writer.write_vector3f(waypoint.position.x, waypoint.position.y, waypoint.position.z)
+            writer.write_float(waypoint.radius)
+            writer.write_string(waypoint.id)
+
+            writer.write_comment("# Outgoing Links")
+            for outgoing, data in waypoint.outgoing_links.items():
+                write_link(writer, self.waypoints.index(outgoing), *data)
+
+            for i in range(8 - len(waypoint.outgoing_links)):
+                write_link(writer, -1, 0.0, 0, 0)
+
+            writer.write_comment("# Incoming Links")
+            for incoming, data in waypoint.incoming_links.items():
+                write_link(writer, self.waypoints.index(incoming), *data)
+
+            for i in range(8 - len(waypoint.incoming_links)):
+                write_link(writer, -1, 0.0, 0, 0)
+
+            writer.write_integer(waypoint.waypoint_type)
