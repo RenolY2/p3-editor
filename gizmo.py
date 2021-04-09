@@ -73,7 +73,7 @@ class Gizmo(Model):
         self.position.z = avgz / len(objects)
         #print("New position is", self.position, len(objects))
 
-    def render_collision_check(self, scale, is3d=True):
+    def render_collision_check(self, scale, is3d=True, rotation=True):
         if not self.hidden:
             glPushMatrix()
             glTranslatef(self.position.x, -self.position.z, self.position.y)
@@ -84,9 +84,9 @@ class Gizmo(Model):
             named_meshes["gizmo_x"].render_colorid(0x1)
             if is3d: named_meshes["gizmo_y"].render_colorid(0x2)
             named_meshes["gizmo_z"].render_colorid(0x3)
-            if is3d: named_meshes["rotation_x"].render_colorid(0x4)
-            named_meshes["rotation_y"].render_colorid(0x5)
-            if is3d: named_meshes["rotation_z"].render_colorid(0x6)
+            if is3d and rotation: named_meshes["rotation_x"].render_colorid(0x4)
+            if rotation: named_meshes["rotation_y"].render_colorid(0x5)
+            if is3d and rotation: named_meshes["rotation_z"].render_colorid(0x6)
             if not is3d: named_meshes["middle"].render_colorid(0x7)
             glPopMatrix()
 
@@ -119,7 +119,7 @@ class Gizmo(Model):
         glEnd()
 
     @catch_exception
-    def render(self, is3d=True):
+    def render(self, is3d=True, rotation=True):
         if not self.hidden:
             glColor4f(*X_COLOR)
             self.named_meshes["gizmo_x"].render()
@@ -128,11 +128,11 @@ class Gizmo(Model):
 
 
             glColor4f(*Y_COLOR)
-            if is3d: self.named_meshes["gizmo_y"].render()
-            self.named_meshes["rotation_y"].render()
+            if is3d and rotation: self.named_meshes["gizmo_y"].render()
+            if rotation: self.named_meshes["rotation_y"].render()
             glColor4f(*Z_COLOR)
             self.named_meshes["gizmo_z"].render()
-            if is3d: self.named_meshes["rotation_z"].render()
+            if is3d and rotation: self.named_meshes["rotation_z"].render()
             glColor4f(*MIDDLE)
             if not is3d: self.named_meshes["middle"].render()
             """for mesh in self.mesh_list:
@@ -149,7 +149,7 @@ class Gizmo(Model):
                     glColor4f(0.5, 0.5, 0.5, 1.0)
                 mesh.render()"""
 
-    def render_scaled(self, scale, is3d=True):
+    def render_scaled(self, scale, is3d=True, rotation=True):
         glPushMatrix()
         glTranslatef(self.position.x, -self.position.z, self.position.y)
 
@@ -165,7 +165,7 @@ class Gizmo(Model):
         glClear(GL_DEPTH_BUFFER_BIT)
         glScalef(scale, scale, scale)
         if not self.hidden:
-            self.render(is3d)
+            self.render(is3d, rotation)
 
 
         glPopMatrix()

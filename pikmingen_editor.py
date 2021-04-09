@@ -1119,6 +1119,10 @@ class GenEditor(QMainWindow):
         print("Hey")
         is_checked = self.pik_control.button_connect.isChecked()
         self.pik_control.button_disconnect.setChecked(False)
+
+        #self.pikmin_gen_view.gizmo.hidden = not is_checked
+
+
         print(is_checked)
         if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
             self.last_waypoint = self.pikmin_gen_view.selected[0]
@@ -1127,6 +1131,9 @@ class GenEditor(QMainWindow):
     def action_disconnect_button_pressed(self):
         is_checked = self.pik_control.button_disconnect.isChecked()
         self.pik_control.button_connect.setChecked(False)
+
+        #self.pikmin_gen_view.gizmo.hidden = not is_checked
+
         if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
             self.last_waypoint = self.pikmin_gen_view.selected[0]
         #self.pik_control.button_disconnect.setChecked(not is_checked)

@@ -30,7 +30,7 @@ from lib.model_rendering import TexturedPlane, Model, Grid, GenericObject
 from gizmo import Gizmo
 from lib.object_models import ObjectModels, WaypointsGraphics
 from editor_controls import UserControl
-from lib.libpath import Paths
+from lib.libpath import Paths, Waypoint
 import numpy
 
 MOUSE_MODE_NONE = 0
@@ -538,6 +538,10 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
         self.gizmo_scale = gizmo_scale
 
         #print(self.gizmo.position, campos)
+        do_rotation = False
+        for selected in self.selected:
+            if not isinstance(selected, Waypoint):
+                do_rotation = True
 
         while len(self.selectionqueue) > 0:
             glClearColor(1.0, 1.0, 1.0, 0.0)
@@ -549,7 +553,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
             #print("received request", do_gizmo)
 
             if clickwidth == 1 and clickheight == 1:
-                self.gizmo.render_collision_check(gizmo_scale, is3d=self.mode == MODE_3D)
+                self.gizmo.render_collision_check(gizmo_scale, is3d=self.mode == MODE_3D, rotation=do_rotation)
                 pixels = glReadPixels(click_x, click_y, clickwidth, clickheight, GL_RGB, GL_UNSIGNED_BYTE)
                 #print(pixels)
                 hit = pixels[2]
@@ -611,6 +615,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                     self.select_update.emit()
 
                 self.gizmo.move_to_average(self.selected)
+
                 if len(selected) == 0:
                     #print("Select did register")
                     self.gizmo.hidden = True
@@ -691,7 +696,7 @@ class GenMapViewer(QtWidgets.QOpenGLWidget):
                                               scale * 100, scale * 100, depth,
                                               pikminobject in selected)
 
-        self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D)
+        self.gizmo.render_scaled(gizmo_scale, is3d=self.mode == MODE_3D, rotation=do_rotation)
 
 
 
