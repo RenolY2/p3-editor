@@ -19,6 +19,10 @@ class LinkAlreadyExists(Exception):
     pass
 
 
+class ImproperLinking(Exception):
+    pass
+
+
 def read_link(reader: GeneratorReader, version):
     token = reader.read_token()
 
@@ -301,7 +305,8 @@ class Paths(object):
             for wp in waypoint.outgoing_links:
                 #print(waypoint.name(), wp.name())
                 #print(waypoint.outgoing_links[wp][1], wp.incoming_links[waypoint][1])
-                assert waypoint in wp.incoming_links
+                if waypoint not in wp.incoming_links:
+                    raise ImproperLinking("{0} not found in Incoming Links of {1}".format(waypoint.name(), wp.name()))
 
                 assert waypoint.outgoing_links[wp][1] == wp.incoming_links[waypoint][1]
                 # assert waypoint.outgoing_links[wp][2] == wp.incoming_links[waypoint][2]
