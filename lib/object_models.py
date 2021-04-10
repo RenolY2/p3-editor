@@ -5,7 +5,7 @@ from .model_rendering import (GenericObject, Model, TexturedModel,
                               GenericFlyer, GenericCrystallWall, GenericLongLegs, GenericChappy, GenericSnakecrow,
                               GenericSwimmer, GenericObjectSphere)
 
-
+"""
 WAYPOINT_NODE_COLOR = {
     1: (1.0, 1.0, 1.0, 1.0),  # White
     8: (1.0, 1.0, 0.0, 1.0),  # Yellow
@@ -15,7 +15,15 @@ WAYPOINT_NODE_COLOR = {
     137: (0.0, 1.0, 0.0, 1.0),  # Green
     144: (0.0, 1.0, 1.0, 1.0),  # Cyan
     161: (0.0, 0.0, 1.0, 1.0)  # Blue
-}
+}"""
+with open("resources/waypoint_node_colors.json", "r") as f:
+    tmp = json.load(f)
+
+WAYPOINT_NODE_COLOR = {}
+for key, data in tmp.items():
+    WAYPOINT_NODE_COLOR[int(key)] = data
+
+
 
 class ObjectModels(object):
     def __init__(self):
