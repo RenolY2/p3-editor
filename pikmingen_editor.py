@@ -19,7 +19,7 @@ from lib.libgen import GeneratorFile, GeneratorWriter
 
 
 #from libpiktxt import PikminGenFile, WaterboxTxt
-
+import widgets
 from widgets.editor_widgets import catch_exception
 from widgets.editor_widgets import AddPikObjectWindow
 from configuration import read_config, make_default_config, save_cfg
