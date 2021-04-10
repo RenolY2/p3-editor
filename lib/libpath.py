@@ -8,7 +8,7 @@ WP_BLANK = """
 0.0 0.0 0.0 # Waypoint position (ignore this)
 50.0 # Waypoint radius
 "" # Waypoint ID
-0 # Waypoint type
+1 # Waypoint type
 """
 
 
