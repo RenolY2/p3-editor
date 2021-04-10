@@ -362,8 +362,8 @@ class GenEditor(QMainWindow):
 
         self.pikmin_gen_view.rotate_current.connect(self.action_rotate_object)
 
-        delete_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(Qt.Key_Delete), self)
-        delete_shortcut.activated.connect(self.action_delete_objects)
+        #delete_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(Qt.Key_Delete), self)
+        #delete_shortcut.activated.connect(self.action_delete_objects)
 
 
         self.pik_control.button_connect.pressed.connect(self.action_connect_button_pressed)
