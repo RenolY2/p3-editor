@@ -525,7 +525,7 @@ class GenEditor(QMainWindow):
                     arc.files["path.txt"].seek(0)
 
                     with open(filepath, "wb") as f:
-                        arc.to_file(f, compress=self.current_gen_path.endswith(".szs"))
+                        arc.to_file(f, compress=filepath.endswith(".szs"))
 
                     #self.set_has_unsaved_changes(False)
                     self.statusbar.showMessage("Saved to {0}".format(filepath))
