@@ -29,11 +29,11 @@ def catch_exception(func):
 def catch_exception_with_dialog(func):
     def handle(*args, **kwargs):
         try:
-            print(args, kwargs)
+            #print(args, kwargs)
             return func(*args, **kwargs)
         except Exception as e:
             traceback.print_exc()
-            print("hey")
+            #print("hey")
             open_error_dialog(str(e), None)
     return handle
 

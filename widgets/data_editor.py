@@ -510,7 +510,7 @@ class WaypointEdit(DataEditor):
             sync1, sync2 = create_synchronizer(self.out_links[wp], wp.incoming_links[self.bound_to])
 
             self.out_links[wp][1].editingFinished.connect(sync1)
-            self.out_links[wp][2].editingFinished.connect(sync2)
+            # self.out_links[wp][2].editingFinished.connect(sync2)
 
         self.add_label("Incoming Links:")
         for wp in self.bound_to.incoming_links:
@@ -526,7 +526,7 @@ class WaypointEdit(DataEditor):
             sync1, sync2 = create_synchronizer(self.in_links[wp], wp.outgoing_links[self.bound_to])
 
             self.in_links[wp][1].editingFinished.connect(sync1)
-            self.in_links[wp][2].editingFinished.connect(sync2)
+            # self.in_links[wp][2].editingFinished.connect(sync2)
 
     def update_data(self):
         super().update_data()

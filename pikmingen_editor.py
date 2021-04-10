@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QFileDialog,
                              QSpacerItem, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QHBoxLayout,
                              QScrollArea, QGridLayout, QMenuBar, QMenu, QAction, QApplication, QStatusBar, QLineEdit)
-from PyQt5.QtGui import QMouseEvent, QImage
+from PyQt5.QtGui import QMouseEvent, QImage, QKeySequence
 import PyQt5.QtGui as QtGui
 
 import opengltext
@@ -71,12 +71,17 @@ class GenEditor(QMainWindow):
 
         self.addobjectwindow_last_selected = None
 
-        self.loaded_archive = None
+        #self.loaded_archive = None
         self.loaded_archive_file = None
         self.loaded_paths = Paths()
+        self.path_file_path = None
         self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
 
         self.last_waypoint = None
+        self.last_gen_path = self.pathsconfig["gen"]
+        self.last_path_path = self.pathsconfig["gen"]
+        self.last_gen_filter = ""
+        self.last_path_filter = ""
 
     @catch_exception
     def reset(self):
@@ -133,6 +138,10 @@ class GenEditor(QMainWindow):
             else:
                 self.setWindowTitle("Pikmin 3 Generators Editor")
 
+    def gen_path_combined_saving(self):
+        self.button_save_level()
+        self.button_save_paths()
+
     def setup_ui(self):
         self.resize(1000, 800)
         self.set_base_window_title("")
@@ -171,15 +180,17 @@ class GenEditor(QMainWindow):
         self.file_menu = QMenu(self)
         self.file_menu.setTitle("File")
 
-        save_file_shortcut = QtWidgets.QShortcut(Qt.CTRL + Qt.Key_S, self.file_menu)
-        save_file_shortcut.activated.connect(self.button_save_level)
+        self.save_file_shortcut = QtWidgets.QShortcut(QKeySequence("Ctrl+S"), self)
+        self.save_file_shortcut.activated.connect(self.gen_path_combined_saving)
         #QtWidgets.QShortcut(Qt.CTRL + Qt.Key_O, self.file_menu).activated.connect(self.button_load_level)
         #QtWidgets.QShortcut(Qt.CTRL + Qt.Key_Alt + Qt.Key_S, self.file_menu).activated.connect(self.button_save_level_as)
 
         self.file_load_action = QAction("Load", self)
         self.save_file_action = QAction("Save", self)
+        self.save_file_action.setStatusTip("Save Shortcut: Ctrl+S")
+        self.save_file_action.setShortcutVisibleInContextMenu(True)
         self.save_file_as_action = QAction("Save As", self)
-        self.save_file_action.setShortcut("Ctrl+S")
+        #self.save_file_action.setShortcut("Ctrl+S")
         self.file_load_action.setShortcut("Ctrl+O")
         self.save_file_as_action.setShortcut("Ctrl+Alt+S")
 
@@ -198,6 +209,8 @@ class GenEditor(QMainWindow):
         self.paths_menu.addAction(self.paths_load)
         self.paths_save = QAction("Save Paths", self)
         self.paths_save.triggered.connect(self.button_save_paths)
+        self.paths_save.setStatusTip("Save Shortcut: Ctrl+S")
+        #self.paths_save.setShortcut("Ctrl+S")
         self.paths_menu.addAction(self.paths_save)
         self.paths_save_as = QAction("Save Paths As", self)
         self.paths_save_as.triggered.connect(self.button_save_paths_as)
@@ -223,6 +236,7 @@ class GenEditor(QMainWindow):
         self.goto_action = QAction("Go to Object", self)
         self.goto_action.triggered.connect(self.do_goto_action)
         self.goto_action.setShortcut("Ctrl+G")
+
         self.misc_menu.addAction(self.goto_action)
 
         self.change_to_topdownview_action = QAction("Topdown View", self)
@@ -348,6 +362,9 @@ class GenEditor(QMainWindow):
 
         self.pikmin_gen_view.rotate_current.connect(self.action_rotate_object)
 
+        delete_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(Qt.Key_Delete), self)
+        delete_shortcut.activated.connect(self.action_delete_objects)
+
 
         self.pik_control.button_connect.pressed.connect(self.action_connect_button_pressed)
         self.pik_control.button_disconnect.pressed.connect(self.action_disconnect_button_pressed)
@@ -367,24 +384,27 @@ class GenEditor(QMainWindow):
     def button_load_level(self):
         filepath, choosentype = QFileDialog.getOpenFileName(
             self, "Open File",
-            self.pathsconfig["gen"],
-            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)")
+            self.last_gen_path,
+            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)",
+            self.last_gen_filter)
 
         if filepath:
             print("Resetting editor")
             self.reset()
             print("Reset done")
             print("Chosen file type:", choosentype)
+            self.last_gen_filter = choosentype
+            self.last_gen_path = filepath
             if choosentype == "Archived files (*.arc, *.szs)" or filepath.endswith(".szs") or filepath.endswith(".arc"):
                 with open(filepath, "rb") as f:
                     try:
-                        self.loaded_archive = SARCArchive.from_file(f)
+                        arc = SARCArchive.from_file(f)
                     except Exception as error:
                         print("Error appeared while loading:", error)
                         traceback.print_exc()
                         open_error_dialog(str(error), self)
                         return
-                filepaths = [x for x in self.loaded_archive.files.keys()]
+                filepaths = [x for x in arc.files.keys()]
                 filepaths.sort()
                 file, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file")
                 print("selected:", file)
@@ -394,7 +414,7 @@ class GenEditor(QMainWindow):
                     self.loaded_archive = None
                     return
 
-                genfile = self.loaded_archive.files[file]
+                genfile = arc.files[file]
 
                 try:
                     pikmin_gen_file = GeneratorFile.from_file(
@@ -422,13 +442,32 @@ class GenEditor(QMainWindow):
     def button_load_paths(self):
         filepath, choosentype = QFileDialog.getOpenFileName(
             self, "Open File",
-            self.pathsconfig["gen"],
-            "Path file (path.txt;*.txt);;Archived Path file (*.szs);;All files (*)")
+            self.last_path_path,
+            "Path file (path.txt;*.txt);;Archived Path file (*.szs);;All files (*)",
+            self.last_path_filter)
 
         if filepath:
-            with open(filepath, "r", encoding="shift_jis-2004") as f:
+            self.last_path_path = filepath
+            self.last_path_filter = choosentype
+            if filepath.lower().endswith(".arc") or filepath.lower().endswith(".szs") or choosentype == "Archived Path file (*.szs)":
+                with open(filepath, "rb") as f:
+                    try:
+                        arc = SARCArchive.from_file(f)
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
+                        return
+
+                if "path.txt" not in arc.files:
+                    open_error_dialog("SZS Archive does not contain 'path.txt'! Path file not loaded.", self)
+                    return
+
                 try:
-                    paths = Paths.from_file(f)
+                    path_raw = arc.files["path.txt"].getvalue()
+                    arc.files["path.txt"].seek(0)
+                    path_file = TextIOWrapper(BytesIO(path_raw), errors="replace")
+                    paths = Paths.from_file(path_file)
                     self.loaded_paths = paths
                     self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
                     self.pikmin_gen_view.do_redraw()
@@ -438,13 +477,121 @@ class GenEditor(QMainWindow):
                     traceback.print_exc()
                     open_error_dialog(str(error), self)
 
+                """filepaths = [x for x in self.loaded_archive.files.keys()]
+                filepaths.sort()
+                file, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file")
+                print("selected:", file)
+                self.loaded_archive_file = file"""
+
+            elif filepath.lower().endswith(".txt"):
+                with open(filepath, "r", encoding="shift_jis-2004") as f:
+                    try:
+                        paths = Paths.from_file(f)
+                        self.loaded_paths = paths
+                        self.pikmin_gen_view.waypoints.set_paths(self.loaded_paths)
+                        self.pikmin_gen_view.do_redraw()
+
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
+
+            self.path_file_path = filepath
+
     def button_save_paths(self):
-        pass
+        filepath = self.path_file_path
+
+        if filepath:
+            if filepath.lower().endswith(".arc") or filepath.lower().endswith(".szs"):
+                with open(filepath, "rb") as f:
+                    try:
+                        arc = SARCArchive.from_file(f)
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
+                        return
+
+                if "path.txt" not in arc.files:
+                    open_error_dialog("SZS Archive does not contain 'path.txt'! Path file not saved.", self)
+                    return
+
+                try:
+                    path_raw = arc.files["path.txt"].getvalue()
+                    arc.files["path.txt"].seek(0)
+                    tmp = StringIO()
+                    self.loaded_paths.write(tmp)
+                    arc.files["path.txt"].write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
+                    arc.files["path.txt"].seek(0)
+
+                    with open(filepath, "wb") as f:
+                        arc.to_file(f, compress=self.current_gen_path.endswith(".szs"))
+
+                    #self.set_has_unsaved_changes(False)
+                    self.statusbar.showMessage("Saved to {0}".format(filepath))
+                except Exception as error:
+                    print("Error appeared while loading:", error)
+                    traceback.print_exc()
+                    open_error_dialog(str(error), self)
+
+            elif filepath.lower().endswith(".txt"):
+                with open(filepath, "w", encoding="shift_jis-2004") as f:
+                    self.loaded_paths.write(f)
+                    #self.set_has_unsaved_changes(False)
+
+                    self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
 
     def button_save_paths_as(self):
-        pass
+        filepath, choosentype = QFileDialog.getSaveFileName(
+            self, "Save File",
+            self.last_path_path,
+            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)",
+            self.last_path_filter)
 
-    def setup_gen_file(self, pikmin_gen_file, filepath):
+        if filepath:
+            if filepath.lower().endswith(".arc") or filepath.lower().endswith(".szs"):
+                with open(filepath, "rb") as f:
+                    try:
+                        arc = SARCArchive.from_file(f)
+                    except Exception as error:
+                        print("Error appeared while loading:", error)
+                        traceback.print_exc()
+                        open_error_dialog(str(error), self)
+                        return
+
+                if "path.txt" not in arc.files:
+                    open_error_dialog("SZS Archive does not contain 'path.txt'! Path file not saved.", self)
+                    return
+
+                try:
+                    path_raw = arc.files["path.txt"].getvalue()
+                    arc.files["path.txt"].seek(0)
+                    tmp = StringIO()
+                    self.loaded_paths.write(tmp)
+                    arc.files["path.txt"].write(
+                        tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
+                    arc.files["path.txt"].seek(0)
+
+                    with open(filepath, "wb") as f:
+                        arc.to_file(f, compress=self.current_gen_path.endswith(".szs"))
+
+                    # self.set_has_unsaved_changes(False)
+                    self.statusbar.showMessage("Saved to {0}".format(filepath))
+                except Exception as error:
+                    print("Error appeared while loading:", error)
+                    traceback.print_exc()
+                    open_error_dialog(str(error), self)
+
+            elif filepath.lower().endswith(".txt"):
+                with open(filepath, "w", encoding="shift_jis-2004") as f:
+                    self.loaded_paths.write(f)
+                    # self.set_has_unsaved_changes(False)
+
+                    self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
+
+            self.path_file_path = filepath
+
+    def setup_gen_file(self, pikmin_gen_file, filepath, name_in_szs=None):
         self.pikmin_gen_file = pikmin_gen_file
         self.pikmin_gen_view.pikmin_generators = self.pikmin_gen_file
         # self.pikmin_gen_view.update()
@@ -453,7 +600,10 @@ class GenEditor(QMainWindow):
         print("File loaded")
         # self.bw_map_screen.update()
         # path_parts = path.split(filepath)
-        self.set_base_window_title(filepath)
+        if name_in_szs is not None:
+            self.set_base_window_title(filepath+" ({0})".format(name_in_szs))
+        else:
+            self.set_base_window_title(filepath)
         self.pathsconfig["gen"] = filepath
         save_cfg(self.configuration)
         self.current_gen_path = filepath
@@ -461,10 +611,14 @@ class GenEditor(QMainWindow):
     @catch_exception_with_dialog
     def button_save_level(self, *args, **kwargs):
         if self.current_gen_path is not None:
-            if self.loaded_archive is not None:
-                assert self.loaded_archive_file is not None
+            if self.loaded_archive_file is not None:
+                with open(self.current_gen_path, "rb") as f:
+                    arc = SARCArchive.from_file(f)
+                #assert self.loaded_archive_file is not None
 
-                file = self.loaded_archive.files[self.loaded_archive_file]
+
+
+                file = arc.files[self.loaded_archive_file]
                 file.seek(0)
                 tmp = StringIO()
                 writer = GeneratorWriter(tmp)
@@ -473,7 +627,7 @@ class GenEditor(QMainWindow):
                 file.seek(0)
 
                 with open(self.current_gen_path, "wb") as f:
-                    self.loaded_archive.to_file(f, compress=self.current_gen_path.endswith(".szs"))
+                    arc.to_file(f, compress=self.current_gen_path.endswith(".szs"))
 
                 self.set_has_unsaved_changes(False)
                 self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
@@ -485,32 +639,44 @@ class GenEditor(QMainWindow):
                     self.set_has_unsaved_changes(False)
 
                     self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
-        else:
-            self.button_save_level_as()
+        #else:
+        #    self.button_save_level_as()
 
     @catch_exception_with_dialog
     def button_save_level_as(self, *args, **kwargs):
         filepath, choosentype = QFileDialog.getSaveFileName(
             self, "Save File",
-            self.pathsconfig["gen"],
-            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)")
+            self.last_gen_path,
+            "Generator files (*.txt);;Archived files (*.arc, *.szs);;All files (*)",
+            self.last_gen_filter)
         if filepath:
+            self.last_gen_path = filepath
+            self.last_gen_filter = choosentype
             if choosentype == "Archived files (*.arc, *.szs)" or filepath.endswith(".arc") or filepath.endswith(".szs"):
-                if self.loaded_archive is None or self.loaded_archive_file is None:
-                    raise RuntimeError("No archive loaded!")
-                else:
-                    file = self.loaded_archive.files[self.loaded_archive_file]
-                    file.seek(0)
-                    tmp = StringIO()
-                    writer = GeneratorWriter(tmp)
-                    self.pikmin_gen_file.write(writer)
-                    file.write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
-                    file.seek(0)
-                    with open(filepath, "wb") as f:
-                        self.loaded_archive.to_file(f, compress=filepath.endswith(".szs"))
+                with open(filepath, "rb") as f:
+                    arc = SARCArchive.from_file(f)
 
-                    self.set_has_unsaved_changes(False)
-                    self.statusbar.showMessage("Saved to {0}".format(filepath))
+                filepaths = [x for x in arc.files.keys()]
+                filepaths.sort()
+                file, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file to save over")
+                print("selected:", file)
+                self.loaded_archive_file = file
+
+                if file is None:
+                    return
+
+                file = self.loaded_archive.files[file]
+                file.seek(0)
+                tmp = StringIO()
+                writer = GeneratorWriter(tmp)
+                self.pikmin_gen_file.write(writer)
+                file.write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
+                file.seek(0)
+                with open(filepath, "wb") as f:
+                    self.loaded_archive.to_file(f, compress=filepath.endswith(".szs"))
+
+                self.set_has_unsaved_changes(False)
+                self.statusbar.showMessage("Saved to {0}".format(filepath))
             else:
                 with open(filepath, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
 
@@ -853,9 +1019,13 @@ class GenEditor(QMainWindow):
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
+            if hasattr(obj, "rotation"):
+                self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
+            else:
+                self.pik_control.set_info(self.update_3d, obj, obj.position, None)
         self.pikmin_gen_view.gizmo.move_to_average(self.pikmin_gen_view.selected)
         self.set_has_unsaved_changes(True)
+        self.pikmin_gen_view.waypoints.set_dirty()
         self.pikmin_gen_view.do_redraw()
 
     def action_delete_objects(self):

@@ -123,12 +123,12 @@ class Gizmo(Model):
         if not self.hidden:
             glColor4f(*X_COLOR)
             self.named_meshes["gizmo_x"].render()
-            if is3d: self.named_meshes["rotation_x"].render()
+            if is3d and rotation: self.named_meshes["rotation_x"].render()
 
 
 
             glColor4f(*Y_COLOR)
-            if is3d and rotation: self.named_meshes["gizmo_y"].render()
+            if is3d: self.named_meshes["gizmo_y"].render()
             if rotation: self.named_meshes["rotation_y"].render()
             glColor4f(*Z_COLOR)
             self.named_meshes["gizmo_z"].render()

@@ -19,24 +19,30 @@ class LinkAlreadyExists(Exception):
     pass
 
 
-def read_link(reader: GeneratorReader):
+def read_link(reader: GeneratorReader, version):
     token = reader.read_token()
 
     vals = token.split(" ")
     try:
-        return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
-    except:
+        if version == 4:
+            return int(vals[0]), float(vals[1]), int(vals[2]), 0
+        else:
+            return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
+    except Exception:
         print("Tried reading path link at line", reader.current_line-1, "but data was malformed")
         raise
 
-def write_link(writer: GeneratorWriter, index, distance, val1, val2):
-    res = "{0} {1.8f} {2} {3}".format(index, distance, val1, val2)
+
+def write_link(writer: GeneratorWriter, index, distance, val1, val2, version):
+    if version == 4:
+        res = "{0} {1:.8f} {2}".format(index, distance, val1)
+    else:
+        res = "{0} {1:.8f} {2} {3}".format(index, distance, val1, val2)
 
     if "e" in res or "inf" in res:
         raise RuntimeError("invalid float: {0}".format(res))
 
     writer.write_token(res)
-
 
 
 class Waypoint(object):
@@ -164,6 +170,7 @@ class Waypoint(object):
 
 class Paths(object):
     def __init__(self):
+        self.version = 5
         self.waypoints = []
 
         self.unique_paths = []
@@ -258,8 +265,9 @@ class Paths(object):
         paths = cls()
         reader = GeneratorReader(f)
         version = reader.read_integer()
-        if version != 5:
+        if version != 5 and version != 4:
             raise RuntimeError("Unsupported Path Version: {0}".format(version))
+        paths.version = version
 
         pointcount = reader.read_integer()
         waypoints = [Waypoint(i, "", Vector3(0.0, 0.0, 0.0), 100, paths.waypoints) for i in range(pointcount)]
@@ -273,15 +281,15 @@ class Paths(object):
             waypoint.id = reader.read_string()
             #Waypoint(i, id, Vector3(*position), radius)
 
-            for i in range(8):
-                link = read_link(reader)
+            for j in range(8):
+                link = read_link(reader, version)
                 wp, data = link[0], link[1:]
 
                 if wp != -1:
                     waypoint.add_outgoing(waypoints[wp], *data)
 
-            for i in range(8):
-                link = read_link(reader)
+            for j in range(8):
+                link = read_link(reader, version)
                 wp, data = link[0], link[1:]
 
                 if wp != -1:
@@ -291,9 +299,12 @@ class Paths(object):
 
         for waypoint in paths.waypoints:
             for wp in waypoint.outgoing_links:
+                #print(waypoint.name(), wp.name())
+                #print(waypoint.outgoing_links[wp][1], wp.incoming_links[waypoint][1])
                 assert waypoint in wp.incoming_links
+
                 assert waypoint.outgoing_links[wp][1] == wp.incoming_links[waypoint][1]
-                assert waypoint.outgoing_links[wp][2] == wp.incoming_links[waypoint][2]
+                # assert waypoint.outgoing_links[wp][2] == wp.incoming_links[waypoint][2]
 
 
         paths.regenerate_unique_paths()
@@ -316,16 +327,16 @@ class Paths(object):
 
             writer.write_comment("# Outgoing Links")
             for outgoing, data in waypoint.outgoing_links.items():
-                write_link(writer, self.waypoints.index(outgoing), *data)
+                write_link(writer, self.waypoints.index(outgoing), *data, self.version)
 
             for i in range(8 - len(waypoint.outgoing_links)):
-                write_link(writer, -1, 0.0, 0, 0)
+                write_link(writer, -1, 0.0, 0, 0, self.version)
 
             writer.write_comment("# Incoming Links")
             for incoming, data in waypoint.incoming_links.items():
-                write_link(writer, self.waypoints.index(incoming), *data)
+                write_link(writer, self.waypoints.index(incoming), *data, self.version)
 
             for i in range(8 - len(waypoint.incoming_links)):
-                write_link(writer, -1, 0.0, 0, 0)
+                write_link(writer, -1, 0.0, 0, 0, self.version)
 
             writer.write_integer(waypoint.waypoint_type)
