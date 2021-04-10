@@ -421,7 +421,7 @@ class GenEditor(QMainWindow):
                         TextIOWrapper(BytesIO(genfile.getvalue()), errors="replace")
                     )
                     genfile.seek(0)
-                    self.setup_gen_file(pikmin_gen_file, filepath)
+                    self.setup_gen_file(pikmin_gen_file, filepath, file)
 
                 except Exception as error:
                     print("Error appeared while loading:", error)
@@ -611,7 +611,7 @@ class GenEditor(QMainWindow):
     @catch_exception_with_dialog
     def button_save_level(self, *args, **kwargs):
         if self.current_gen_path is not None:
-            if self.loaded_archive_file is not None:
+            if self.current_gen_path.lower().endswith(".arc") or self.current_gen_path.lower().endswith(".szs"):
                 with open(self.current_gen_path, "rb") as f:
                     arc = SARCArchive.from_file(f)
                 #assert self.loaded_archive_file is not None
@@ -658,14 +658,14 @@ class GenEditor(QMainWindow):
 
                 filepaths = [x for x in arc.files.keys()]
                 filepaths.sort()
-                file, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file to save over")
-                print("selected:", file)
-                self.loaded_archive_file = file
+                filen, lastpos = FileSelect.open_file_list(self, filepaths, title="Select file to save over")
+                print("selected:", filen)
+                self.loaded_archive_file = filen
 
-                if file is None:
+                if filen is None:
                     return
 
-                file = self.loaded_archive.files[file]
+                file = arc.files[filen]
                 file.seek(0)
                 tmp = StringIO()
                 writer = GeneratorWriter(tmp)
@@ -673,10 +673,14 @@ class GenEditor(QMainWindow):
                 file.write(tmp.getvalue().encode(encoding="shift-jis-2004", errors="backslashreplace"))
                 file.seek(0)
                 with open(filepath, "wb") as f:
-                    self.loaded_archive.to_file(f, compress=filepath.endswith(".szs"))
+                    arc.to_file(f, compress=filepath.endswith(".szs"))
 
                 self.set_has_unsaved_changes(False)
                 self.statusbar.showMessage("Saved to {0}".format(filepath))
+                self.set_base_window_title(filepath+" ({0})".format(filen))
+                self.pathsconfig["gen"] = filepath
+                save_cfg(self.configuration)
+                self.current_gen_path = filepath
             else:
                 with open(filepath, "w", encoding="shift-jis-2004", errors="backslashreplace") as f:
 
@@ -687,6 +691,7 @@ class GenEditor(QMainWindow):
                     save_cfg(self.configuration)
                     self.current_gen_path = filepath
                     self.set_has_unsaved_changes(False)
+                self.loaded_archive_file = None
 
             self.statusbar.showMessage("Saved to {0}".format(self.current_gen_path))
 
