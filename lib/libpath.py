@@ -2,6 +2,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from .libgen import GeneratorReader, GeneratorWriter
 from .vectors import Vector3
+import warnings
 
 WP_BLANK = """
 0.0 0.0 0.0 # Waypoint position (ignore this)
@@ -19,7 +20,7 @@ class LinkAlreadyExists(Exception):
     pass
 
 
-class ImproperLinking(Exception):
+class ImproperLinking(Warning):
     pass
 
 
@@ -306,7 +307,9 @@ class Paths(object):
                 #print(waypoint.name(), wp.name())
                 #print(waypoint.outgoing_links[wp][1], wp.incoming_links[waypoint][1])
                 if waypoint not in wp.incoming_links:
-                    raise ImproperLinking("{0} not found in Incoming Links of {1}".format(waypoint.name(), wp.name()))
+                    warnings.warn("{0} not found in Incoming Links of {1}".format(waypoint.name(), wp.name()))
+                    continue
+                    #raise ImproperLinking("{0} not found in Incoming Links of {1}".format(waypoint.name(), wp.name()))
 
                 assert waypoint.outgoing_links[wp][1] == wp.incoming_links[waypoint][1]
                 # assert waypoint.outgoing_links[wp][2] == wp.incoming_links[waypoint][2]
