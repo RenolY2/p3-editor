@@ -194,7 +194,7 @@ class Paths(object):
         #wp = deepcopy(wp)
         self.waypoints.append(wp)
 
-        for other_wp, data in wp.incoming_links.items():
+        for other_wp, data in list(wp.incoming_links.items()):
             try:
                 other_wp.add_outgoing(wp, *data)
             except LinkAlreadyExists:
@@ -202,7 +202,7 @@ class Paths(object):
             except TooManyLinks:
                 del wp.incoming_links[other_wp]
 
-        for other_wp, data in wp.outgoing_links.items():
+        for other_wp, data in list(wp.outgoing_links.items()):
             try:
                 other_wp.add_incoming(wp, *data)
             except LinkAlreadyExists:
