@@ -1,7 +1,7 @@
 import sys
 import os 
 from cx_Freeze import setup, Executable
-version = "1.0"
+version = "1.2.0.3"
 # Dependencies are automatically detected, but it might need fine tuning.
 
 def files_from_folder(folder):
@@ -10,7 +10,7 @@ def files_from_folder(folder):
 #include_files = files_from_folder("resources/")
 #include_files.extend(files_from_folder("object_templates"))
 include_files = ["resources/", "object_templates/"]
-build_exe_options = {
+build_exe_options = { 
 "packages": ["OpenGL", "numpy.core._methods", "numpy.lib.format"], 
 "excludes": ["tkinter", "scipy", "PyQt5.QtWebEngine", "PyQt5.QtWebEngineCore"],
 "optimize": 0,
