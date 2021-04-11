@@ -158,6 +158,7 @@ class Waypoint(object):
         waypoint_type = reader.read_integer()
 
         waypoint = cls(None, id, position, radius)
+        waypoint.waypoint_type = waypoint_type
         return waypoint
 
     """def get_incoming_info(self, index):
