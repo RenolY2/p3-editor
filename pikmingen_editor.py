@@ -164,7 +164,11 @@ class GenEditor(QMainWindow):
         self.pik_control = PikminSideWidget(self)
         self.horizontalLayout.addWidget(self.pik_control)
 
-        QtWidgets.QShortcut(Qt.CTRL + Qt.Key_E, self).activated.connect(self.action_open_editwindow)
+        QtWidgets.QShortcut(Qt.Key_C, self).activated.connect(self.action_connect_button_pressed_shortcut)
+        QtWidgets.QShortcut(Qt.Key_R, self).activated.connect(self.action_disconnect_button_pressed_shortcut)
+
+
+        QtWidgets.QShortcut(Qt.CTRL + Qt.Key_E, self).activated.connect(self.action_open_editwindow_shortcut)
         QtWidgets.QShortcut(Qt.Key_M, self).activated.connect(self.shortcut_move_objects)
         QtWidgets.QShortcut(Qt.Key_G, self).activated.connect(self.action_ground_objects)
         QtWidgets.QShortcut(Qt.CTRL + Qt.Key_A, self).activated.connect(self.shortcut_open_add_item_window)
@@ -1003,11 +1007,16 @@ class GenEditor(QMainWindow):
     def action_rotate_object(self, deltarotation):
         #obj.set_rotation((None, round(angle, 6), None))
         for obj in self.pikmin_gen_view.selected:
-            obj.rotation += deltarotation
+            if hasattr(obj, "rotation"):
+                obj.rotation += deltarotation
 
         if len(self.pikmin_gen_view.selected) == 1:
             obj = self.pikmin_gen_view.selected[0]
-            self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
+            if hasattr(obj, "rotation"):
+                self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
+            else:
+                self.pik_control.set_info(self.update_3d, obj, obj.position, None)
+            #self.pik_control.set_info(self.update_3d, obj, obj.position, obj.rotation)
 
         #self.pikmin_gen_view.update()
         self.pikmin_gen_view.do_redraw()
@@ -1183,6 +1192,10 @@ class GenEditor(QMainWindow):
 
         return change_field
 
+    def action_open_editwindow_shortcut(self):
+        if self.pik_control.button_edit_object.isEnabled():
+            self.action_open_editwindow()
+
     @catch_exception
     def action_open_editwindow(self):
         if self.pikmin_gen_file is not None:
@@ -1292,26 +1305,37 @@ class GenEditor(QMainWindow):
 
     def action_connect_button_pressed(self):
         print("Hey")
-        is_checked = self.pik_control.button_connect.isChecked()
+
         self.pik_control.button_disconnect.setChecked(False)
 
         #self.pikmin_gen_view.gizmo.hidden = not is_checked
 
-
-        print(is_checked)
         if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
             self.last_waypoint = self.pikmin_gen_view.selected[0]
         #self.pik_control.button_connect.setChecked(True)
 
+    def action_connect_button_pressed_shortcut(self):
+        if self.pik_control.button_connect.isEnabled():
+            is_checked = self.pik_control.button_connect.isChecked()
+            is_checked = self.pik_control.button_connect.setChecked(not is_checked)
+            self.action_connect_button_pressed()
+
     def action_disconnect_button_pressed(self):
-        is_checked = self.pik_control.button_disconnect.isChecked()
-        self.pik_control.button_connect.setChecked(False)
+        if self.pik_control.button_disconnect.isEnabled():
+            is_checked = self.pik_control.button_disconnect.isChecked()
+            self.pik_control.button_connect.setChecked(False)
 
-        #self.pikmin_gen_view.gizmo.hidden = not is_checked
+            #self.pikmin_gen_view.gizmo.hidden = not is_checked
 
-        if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
-            self.last_waypoint = self.pikmin_gen_view.selected[0]
-        #self.pik_control.button_disconnect.setChecked(not is_checked)
+            if len(self.pikmin_gen_view.selected) > 0 and isinstance(self.pikmin_gen_view.selected[0], Waypoint):
+                self.last_waypoint = self.pikmin_gen_view.selected[0]
+            #self.pik_control.button_disconnect.setChecked(not is_checked)
+
+    def action_disconnect_button_pressed_shortcut(self):
+        if self.pik_control.button_disconnect.isEnabled():
+            is_checked = self.pik_control.button_disconnect.isChecked()
+            is_checked = self.pik_control.button_disconnect.setChecked(not is_checked)
+            self.action_disconnect_button_pressed()
 
 
 class EditorHistory(object):
