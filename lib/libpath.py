@@ -31,18 +31,25 @@ def read_link(reader: GeneratorReader, version):
     try:
         if version == 4:
             return int(vals[0]), float(vals[1]), int(vals[2]), 0
-        else:
+        elif version == 5:
             return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
+        elif version == 7:
+            hintToken = reader.read_token()
+            hintVals = hintToken.split(" ")
+
+            return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3]), int(hintVals[0]), int(hintVals[1])
     except Exception:
         print("Tried reading path link at line", reader.current_line-1, "but data was malformed")
         raise
 
 
-def write_link(writer: GeneratorWriter, index, distance, val1, val2, version):
+def write_link(writer: GeneratorWriter, index, distance, val1, val2, val3, val4, version):
     if version == 4:
         res = "{0} {1:.8f} {2}".format(index, distance, val1)
-    else:
+    elif version == 5:
         res = "{0} {1:.8f} {2} {3}".format(index, distance, val1, val2)
+    elif version == 7:
+        res = "{0} {1:.8f} {2} {3}\n{4} {5}".format(index, distance, val1, val2, val3, val4)
 
     if "e" in res or "inf" in res:
         raise RuntimeError("invalid float: {0}".format(res))
@@ -51,11 +58,12 @@ def write_link(writer: GeneratorWriter, index, distance, val1, val2, version):
 
 
 class Waypoint(object):
-    def __init__(self, index, id, position, radius, wp_list=None):
+    def __init__(self, index, id, hints_id, position, radius, wp_list=None):
         self.index = index
         self.position = position
         self.radius = radius
         self.id = id
+        self.hints_id = hints_id
         self.waypoint_type = 0
 
         self.incoming_links = OrderedDict()
@@ -96,22 +104,22 @@ class Waypoint(object):
         if waypoint in self.outgoing_links:
             del self.outgoing_links[waypoint]
 
-    def add_incoming(self, waypoint, unkfloat, unkint, unkint2):
+    def add_incoming(self, waypoint, unkfloat, unkint, unkint2, unkhint3, unkhint4):
         if len(self.incoming_links) >= 8:
             raise TooManyLinks("Too many incoming links, cannot add more")
         if waypoint in self.incoming_links:
             raise LinkAlreadyExists("Link already exists")
 
-        self.incoming_links[waypoint] = [unkfloat, unkint, unkint2]
+        self.incoming_links[waypoint] = [unkfloat, unkint, unkint2, unkhint3, unkhint4]
 
-    def add_outgoing(self, waypoint, unkfloat, unkint, unkint2):
+    def add_outgoing(self, waypoint, unkfloat, unkint, unkint2, unkhint3, unkhint4):
         if len(self.outgoing_links) >= 8:
             raise TooManyLinks("Too many outgoing links, cannot add more")
         if waypoint in self.outgoing_links:
             raise LinkAlreadyExists("Link already exists")
-        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2]
+        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2, unkhint3, unkhint4]
 
-    def add_path_to(self, waypoint, unkfloat, unkint, unkint2):
+    def add_path_to(self, waypoint, unkfloat, unkint, unkint2, unkhint3, unkhint4):
         if waypoint in self.outgoing_links and self in waypoint.incoming_links:
             return
 
@@ -130,8 +138,8 @@ class Waypoint(object):
 
         unkfloat = round((waypoint.position - self.position).norm(), 8)
 
-        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2]
-        waypoint.incoming_links[self] = [unkfloat, unkint, unkint2]
+        self.outgoing_links[waypoint] = [unkfloat, unkint, unkint2, unkhint3, unkhint4]
+        waypoint.incoming_links[self] = [unkfloat, unkint, unkint2, unkhint3, unkhint4]
 
     def remove_path_to(self, waypoint):
         if waypoint not in self.outgoing_links and self not in waypoint.incoming_links:
@@ -271,12 +279,12 @@ class Paths(object):
         paths = cls()
         reader = GeneratorReader(f)
         version = reader.read_integer()
-        if version != 5 and version != 4:
+        if version != 7 and version != 5 and version != 4:
             raise RuntimeError("Unsupported Path Version: {0}".format(version))
         paths.version = version
 
         pointcount = reader.read_integer()
-        waypoints = [Waypoint(i, "", Vector3(0.0, 0.0, 0.0), 100, paths.waypoints) for i in range(pointcount)]
+        waypoints = [Waypoint(i, "", "", Vector3(0.0, 0.0, 0.0), 100, paths.waypoints) for i in range(pointcount)]
 
         for i in range(pointcount):
             assert i == reader.read_integer()  # index
@@ -301,6 +309,7 @@ class Paths(object):
                 if wp != -1:
                     waypoint.add_incoming(waypoints[wp], *data)
             waypoint.waypoint_type = reader.read_integer()
+            waypoint.hints_id = reader.read_string()
             paths.waypoints.append(waypoint)
 
         for waypoint in paths.waypoints:
@@ -324,7 +333,7 @@ class Paths(object):
     def write(self, f):
         writer = GeneratorWriter(f)
 
-        writer.write_integer(5)
+        writer.write_integer(5 if self.version <= 5 else 7)
         writer.write_integer(len(self.waypoints))
 
         for i, waypoint in enumerate(self.waypoints):
@@ -339,13 +348,16 @@ class Paths(object):
                 write_link(writer, self.waypoints.index(outgoing), *data, self.version)
 
             for i in range(8 - len(waypoint.outgoing_links)):
-                write_link(writer, -1, 0.0, 0, 0, self.version)
+                write_link(writer, -1, 0.0, 0, 0, 1, 1, self.version)
 
             writer.write_comment("# Incoming Links")
             for incoming, data in waypoint.incoming_links.items():
                 write_link(writer, self.waypoints.index(incoming), *data, self.version)
 
             for i in range(8 - len(waypoint.incoming_links)):
-                write_link(writer, -1, 0.0, 0, 0, self.version)
+                write_link(writer, -1, 0.0, 0, 0, 1, 1, self.version)
 
             writer.write_integer(waypoint.waypoint_type)
+
+            if self.version >= 7:
+                writer.write_string(waypoint.hints_id)
