@@ -534,14 +534,21 @@ class WaypointEdit(DataEditor):
             self.out_links[wp][0].setText(str(data[0]))
             self.out_links[wp][1].setText(str(data[1]))
             self.out_links[wp][2].setText(str(data[2]))
+            if len(self.out_links[wp]) > 3:
+                self.out_links[wp][3].setText(str(data[3]))
+                self.out_links[wp][4].setText(str(data[4]))
 
         for wp, data in self.bound_to.incoming_links.items():
             self.in_links[wp][0].setText(str(data[0]))
             self.in_links[wp][1].setText(str(data[1]))
             self.in_links[wp][2].setText(str(data[2]))
+            if len(self.in_links[wp]) > 3:
+                self.in_links[wp][3].setText(str(data[3]))
+                self.in_links[wp][4].setText(str(data[4]))
 
     def add_link_edit(self, text, link_list):
         line_edits = []
+        hint_line_edits = []
 
         # Float value edit
         line_edit = QLineEdit(self)
@@ -574,7 +581,33 @@ class WaypointEdit(DataEditor):
         layout = self.create_labeled_widgets(self, text, line_edits)
         self.vbox.addLayout(layout)
 
-        return line_edits
+        if link_list[3] is not None:
+            # Unknown Hint Int 1 edit
+            line_edit = QLineEdit(self)
+            # line_edit.setMaximumWidth(30)
+
+            line_edit.setValidator(QIntValidator(0, 1, self))
+
+            input_edited = create_setter_list2(line_edit, link_list, 3)
+            line_edit.editingFinished.connect(input_edited)
+            hint_line_edits.append(line_edit)
+
+            # Unknown Hint Int 2 edit
+            line_edit = QLineEdit(self)
+            # line_edit.setMaximumWidth(30)
+
+            line_edit.setValidator(QIntValidator(0, 1, self))
+
+            input_edited = create_setter_list2(line_edit, link_list, 4)
+            line_edit.editingFinished.connect(input_edited)
+            hint_line_edits.append(line_edit)
+
+            # Finally
+            layout = self.create_labeled_widgets(self, "    Cursor Hints:", hint_line_edits)
+            self.vbox.addLayout(layout)
+            
+
+        return line_edits + hint_line_edits
 
     def add_multiple_decimal_input(self, attribute, subattributes, text, min_val, max_val):
         line_edits = []
