@@ -1,20 +1,27 @@
 from io import BytesIO
-from struct import pack
+from struct import pack, unpack
 from collections import OrderedDict
 import time
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), os.path.pardir))
 
-from lib.yaz0 import decompress, read_uint32, read_uint16, compress_fast
+from lib.yaz0 import decompress, compress_fast
+
+def read_uint32(endian, f):
+    return unpack(endian + "I", f.read(4))[0]
+    
+def read_uint16(endian, f):
+    return unpack(endian + "H", f.read(2))[0]
 
 
-def write_uint32(f, val):
-    f.write(pack(">I", val))
+
+def write_uint32(endian, f, val):
+    f.write(pack(endian + "I", val))
 
 
-def write_uint16(f, val):
-    f.write(pack(">H", val))
+def write_uint16(endian, f, val):
+    f.write(pack(endian + "H", val))
 
 
 def write_pad(f, multiple=0x20):
@@ -109,6 +116,7 @@ class SARCArchive(object):
     def __init__(self):
         self.files = OrderedDict()
         self.unnamed_files = []
+        self.endian = ">"
 
     @classmethod
     def from_folder(cls, folderpath):
@@ -140,18 +148,20 @@ class SARCArchive(object):
         else:
             file = f
 
+        endian = self.endian
+
         file.write(b"SARC")
-        write_uint16(file, 0x14) # size
-        write_uint16(file, 0xFEFF) # byte order mark
+        write_uint16(endian, file, 0x14) # size
+        write_uint16(endian, file, 0xFEFF) # byte order mark
         archivesize_offset = file.tell()
         file.write(b"ABCDEFGH") # fill in file size and data offset later
-        write_uint16(file, 0x100)  # size
-        write_uint16(file, 0)  # reserved
+        write_uint16(endian, file, 0x100)  # size
+        write_uint16(endian, file, 0)  # reserved
 
         file.write(b"SFAT")
-        write_uint16(file, 0xC)
-        write_uint16(file, len(self.files))
-        write_uint32(file, 0x00000065)
+        write_uint16(endian, file, 0xC)
+        write_uint16(endian, file, len(self.files))
+        write_uint32(endian, file, 0x00000065)
 
         filedata = BytesIO()
         stringtable = StringTable()
@@ -171,14 +181,14 @@ class SARCArchive(object):
             if stringpos > 0xFFFF:
                 raise RuntimeError("String table grew too big!")
 
-            write_uint32(file, namehash)
-            write_uint32(file, (0x0100 << 16) | stringpos)
-            write_uint32(file, offset)
-            write_uint32(file, endoffset)
+            write_uint32(endian, file, namehash)
+            write_uint32(endian, file, (0x0100 << 16) | stringpos)
+            write_uint32(endian, file, offset)
+            write_uint32(endian, file, endoffset)
 
         file.write(b"SFNT")
-        write_uint16(file, 0x8)
-        write_uint16(file, 0x0)
+        write_uint16(endian, file, 0x8)
+        write_uint16(endian, file, 0x0)
         stringtable.write_to(file)
 
         write_pad(file, padding)
@@ -187,8 +197,8 @@ class SARCArchive(object):
         totalsize = file.tell()
 
         file.seek(archivesize_offset)
-        write_uint32(file, totalsize)
-        write_uint32(file, dataoffset)
+        write_uint32(endian, file, totalsize)
+        write_uint32(endian, file, dataoffset)
 
         if compress:
             file.seek(0)
@@ -222,13 +232,20 @@ class SARCArchive(object):
         else:
             raise RuntimeError("Unknown file header: {} should be Yaz0 or SARC".format(header))
 
-        header_size = read_uint16(f)
-        assert read_uint16(f) == 0xFEFF # BOM: Big endian
-        size = read_uint32(f)
+        size_pos = f.tell()
+        f.read(2) # Discard while reading endianness
+        if read_uint16("<", f) == 0xFEFF:
+            newarc.endian = "<" # Little Endian
+        endian = newarc.endian
 
-        data_offset = read_uint32(f)
-        version = read_uint16(f)
-        reserved = read_uint16(f)
+        f.seek(size_pos)
+        header_size = read_uint16(endian, f)
+        assert read_uint16(endian, f) == 0xFEFF # Sanity check
+        size = read_uint32(endian, f)
+
+        data_offset = read_uint32(endian, f)
+        version = read_uint16(endian, f)
+        reserved = read_uint16(endian, f)
 
         print("Archive version", hex(version), "reserved:", reserved)
 
@@ -236,24 +253,24 @@ class SARCArchive(object):
         # SFAT header
         sfat = f.read(4)
         assert sfat == b"SFAT"
-        sfat_header_size = read_uint16(f)
+        sfat_header_size = read_uint16(endian, f)
         assert sfat_header_size == 0xC
-        node_count = read_uint16(f)
-        hash_key = read_uint32(f)
+        node_count = read_uint16(endian, f)
+        hash_key = read_uint32(endian, f)
         assert hash_key == 0x65
 
         nodes = []
         for i in range(node_count):
-            filehash = read_uint32(f)
-            fileattr = read_uint32(f)
-            node_data_start = read_uint32(f)
-            node_data_end = read_uint32(f)
+            filehash = read_uint32(endian, f)
+            fileattr = read_uint32(endian, f)
+            node_data_start = read_uint32(endian, f)
+            node_data_end = read_uint32(endian, f)
             nodes.append((fileattr, node_data_start, node_data_end, filehash))
 
         # String table
         assert f.read(4) == b"SFNT"
-        assert read_uint16(f) == 0x8
-        read_uint16(f) # reserved
+        assert read_uint16(endian, f) == 0x8
+        read_uint16(endian, f) # reserved
 
         string_table_start = f.tell()
 
