@@ -30,9 +30,9 @@ def read_link(reader: GeneratorReader, version):
     vals = token.split(" ")
     try:
         if version == 4:
-            return int(vals[0]), float(vals[1]), int(vals[2]), 0
+            return int(vals[0]), float(vals[1]), int(vals[2]), 0, None, None
         elif version == 5:
-            return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3])
+            return int(vals[0]), float(vals[1]), int(vals[2]), int(vals[3]), None, None
         elif version == 7:
             hintToken = reader.read_token()
             hintVals = hintToken.split(" ")
@@ -309,7 +309,8 @@ class Paths(object):
                 if wp != -1:
                     waypoint.add_incoming(waypoints[wp], *data)
             waypoint.waypoint_type = reader.read_integer()
-            waypoint.hints_id = reader.read_string()
+            if version >= 7:
+                waypoint.hints_id = reader.read_string()
             paths.waypoints.append(waypoint)
 
         for waypoint in paths.waypoints:
