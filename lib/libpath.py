@@ -165,7 +165,7 @@ class Waypoint(object):
         id = reader.read_string()
         waypoint_type = reader.read_integer()
 
-        waypoint = cls(None, id, position, radius)
+        waypoint = cls(None, id, "", position, radius)
         waypoint.waypoint_type = waypoint_type
         return waypoint
 
