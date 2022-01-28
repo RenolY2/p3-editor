@@ -1249,7 +1249,8 @@ class GenEditor(QMainWindow):
                 if isinstance(currentobj, Waypoint):
                     if self.pik_control.button_connect.isChecked():
                         if currentobj != self.last_waypoint:
-                            data = (100.0, 0, 0)
+                            hintDefault = 0 if self.loaded_paths.version == 7 else None
+                            data = (100.0, 0, 0, hintDefault, hintDefault)
 
                             self.last_waypoint.add_path_to(currentobj, *data)
                             self.last_waypoint = currentobj
