@@ -289,18 +289,22 @@ class GeneratorObject(object):
         #print("NOW WE ARE DOING ", name)
         version = reader.read_string()
         generatorid = reader.read_string_tripple()
-        if int(version) >= 7:
-            print("version 7 or higher, getting mode booleans")
+        if int(version) >= 6:
+            print("version 6 or higher, getting mode booleans")
             modes = [
                 reader.read_token(),
                 reader.read_token(),
                 reader.read_token()
             ]
-            fid = reader.read_token()
-            fmt = reader.read_token()
-            gen = cls(name, version, generatorid, modes, fid, fmt)
+            if int(version) >= 7:
+                print("version 7 or higher, getting fid and fmt")
+                fid = reader.read_token()
+                fmt = reader.read_token()
+                gen = cls(name, version, generatorid, modes, fid, fmt)
+            else:
+                gen = cls(name, version, generatorid, modes)
         else:
-            print("version lower than 7")
+            print("version lower than 6")
             gen = cls(name, version, generatorid)
 
         gen.read_parameters(reader)
@@ -312,12 +316,13 @@ class GeneratorObject(object):
         writer.write_string(self.name)
         writer.write_string(self.version)
         writer.write_string_tripple(*self.generatorid)
-        if int(self.version) >= 7:
+        if int(self.version) >= 6:
             writer.write_token(self.modes[0], "# Normal [0=false, 1=true]")
             writer.write_token(self.modes[1], "# Hard [0=false, 1=true]")
             writer.write_token(self.modes[2], "# Ultra-Spicy [0=false, 1=true]")
-            writer.write_token(self.fid, "# Face ID (Unknown)")
-            writer.write_token(self.fmt, "# Face Message Table (Unkown)")
+            if int(self.version) >= 7:
+                writer.write_token(self.fid, "# Face ID (Unknown)")
+                writer.write_token(self.fmt, "# Face Message Table (Unkown)")
         
         self.write_parameters(writer)
         if len(self.spline) == 0:
