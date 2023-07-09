@@ -247,7 +247,7 @@ class GeneratorParameters(object):
 
 
 class GeneratorObject(object):
-    def __init__(self, name, version, generatorid=["", "", ""], modes=[1, 1, 1], fid=0, fmt=0):
+    def __init__(self, name, version, generatorid=["", "", ""], modes=["1", "1", "1"], fid="0", fmt="0"):
         self.name = name
         self.version = version
         self.generatorid = generatorid
@@ -269,6 +269,10 @@ class GeneratorObject(object):
         self.name = obj.name
         self.version = obj.version
         self.generatorid = obj.generatorid
+        
+        self.modes = obj.modes 
+        self.fid = obj.fid 
+        self.fmt = obj.fmt 
 
         self.spline = obj.spline
         self.spline_params = obj.spline_params
@@ -317,6 +321,7 @@ class GeneratorObject(object):
         writer.write_string(self.version)
         writer.write_string_tripple(*self.generatorid)
         if int(self.version) >= 6:
+            print(self.modes[0], type(self.modes[0]))
             writer.write_token(self.modes[0], "# Normal [0=false, 1=true]")
             writer.write_token(self.modes[1], "# Hard [0=false, 1=true]")
             writer.write_token(self.modes[2], "# Ultra-Spicy [0=false, 1=true]")
