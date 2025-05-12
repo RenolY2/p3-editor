@@ -172,6 +172,12 @@ class PikObjectEditor(QMdiSubWindow):
             file.seek(0)
             reader = GeneratorReader(file)
             obj = GeneratorObject.from_generator_file(reader)
+
+            # Do a test run now to avoid issues later
+            file.seek(0)
+            writer = GeneratorWriter(file)
+            obj.write(writer)
+
             del reader
             del file
             self.set_title(obj.name)
