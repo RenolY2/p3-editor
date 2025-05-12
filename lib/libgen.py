@@ -85,6 +85,8 @@ class GeneratorWriter(object):
         self.write_token(res)
 
     def write_float_int(self, f, i):
+        assert isinstance(f, float), f"expected float parameter, got {type(f)}"
+        assert isinstance(i, int), f"expected float parameter, got {type(f)}"
         res = "{0} {1}".format(f, i)
         self.write_token(res)
 
@@ -275,6 +277,7 @@ class GeneratorObject(object):
         self.fmt = obj.fmt 
 
         self.spline = obj.spline
+        self.spline_float = obj.spline_float
         self.spline_params = obj.spline_params
 
         self.position = obj.position
