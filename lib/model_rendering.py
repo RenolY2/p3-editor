@@ -141,7 +141,8 @@ class Material(object):
                 raise RuntimeError("unknown tex format: {0}".format(texturepath))
 
             qimage = QtGui.QImage(texturepath, "fmt")
-
+            if qimage.bits() is None:
+                print(texturepath, "not found")
             imgdata = bytes(qimage.bits().asarray(qimage.width() * qimage.height() * 4))
             glTexImage2D(GL_TEXTURE_2D, 0, 4, qimage.width(), qimage.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, imgdata)
 
