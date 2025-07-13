@@ -334,7 +334,8 @@ class Paths(object):
     def write(self, f):
         writer = GeneratorWriter(f)
 
-        writer.write_integer(5 if self.version <= 5 else 7)
+        #writer.write_integer(5 if self.version <= 5 else 7)
+        writer.write_integer(self.version)
         writer.write_integer(len(self.waypoints))
 
         for i, waypoint in enumerate(self.waypoints):
